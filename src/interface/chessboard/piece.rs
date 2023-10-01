@@ -42,10 +42,11 @@ pub enum ChessPiece {
 }
 
 pub fn fen_to_board(fen: &str) -> [ChessPiece; 64] {
+    let board_fen = fen.split(' ').collect::<Vec<&str>>()[0];
     let mut board: [ChessPiece; 64] = [ChessPiece::None; 64];
     let mut sqr: usize = 0;
 
-    for c in fen.chars() {
+    for c in board_fen.chars() {
         match c {
             '1'..='8' => {
                 // fill n squares with empty
@@ -129,7 +130,7 @@ pub fn piece_to_fen(piece: &ChessPiece) -> String {
         ChessPiece::WQueen => "Q".to_string(),
         ChessPiece::BKing => "k".to_string(),
         ChessPiece::WKing => "K".to_string(),
-        ChessPiece::None => " ".to_string(),
+        ChessPiece::None => "".to_string(),
     }
 }
 

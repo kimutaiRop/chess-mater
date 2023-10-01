@@ -5,6 +5,7 @@ use godot::engine::{
 use godot::engine::{GridContainer, GridContainerVirtual};
 use godot::prelude::*;
 
+use crate::actions::path::is_enpassant_move;
 use crate::actions::play::{make_move, Move};
 use crate::interface::chessboard::piece::string_to_piece;
 
@@ -37,7 +38,7 @@ impl ColorRectVirtual for Square {
     fn process(&mut self, _delta: f64) {
         // add the squares to the board
     }
-    fn can_drop_data(&self, at_position: Vector2, _data: Variant) -> bool {
+    fn can_drop_data(&self, _at_position: Vector2, _data: Variant) -> bool {
         return true;
     }
     fn get_drag_data(&mut self, _at_position: Vector2) -> Variant {
@@ -115,80 +116,38 @@ impl ColorRectVirtual for Square {
             let piece_node = new_centre_drag_node.get_child(0).unwrap();
             let mut piece = piece_node.try_cast::<Piece>().unwrap();
             let mut piece = piece.bind_mut();
+            let from = self.get_square_index(&old_square_parent_node);
+            let to = self.get_square_index(&square_parent_node);
             let piece_move = Move {
-                from: self.get_square_index(&old_square_parent_node),
-                to: self.get_square_index(&square_parent_node),
+                from: from,
+                to: to,
                 piece: piece.piece,
                 moved: piece.moved,
                 fen: board.fen.clone(),
-                from_times_moved: piece.times_moved,
-                can_enpassant: board.can_enpassant.clone(),
-                can_castle: board.can_castle.clone(),
             };
             let allowed = make_move(&piece_move);
-            if !allowed.2 {
+            if !allowed.1 {
                 return;
             }
+            let old_fen = board.fen.clone();
             board.fen = allowed.0.to_string();
             piece.moved = true;
             piece.times_moved += 1;
-            // if any thing is in can_enpassant then remove it
-            board.can_enpassant = vec![];
-            if allowed.1.is_some() {
-                board.can_enpassant.push(allowed.1.unwrap());
-            }
+            // board.reacreate_board();
 
-            // if from or to is 4 then remove castling for
-            if piece_move.from == 4 || piece_move.to == 4 {
-                // check id 1 or 2 is in can_castle remove it
-                if board.can_castle.contains(&1) {
-                    let index = board.can_castle.iter().position(|&x| x == 1).unwrap();
-                    board.can_castle.remove(index);
-                }
-                if board.can_castle.contains(&2) {
-                    let index = board.can_castle.iter().position(|&x| x == 2).unwrap();
-                    board.can_castle.remove(index);
-                }
-            }
-
-            // if from or to is 60 then remove castling for white
-            if piece_move.from == 60 || piece_move.to == 60 {
-                // check id 3 or 4 is in can_castle remove it
-                if board.can_castle.contains(&3) {
-                    let index = board.can_castle.iter().position(|&x| x == 3).unwrap();
-                    board.can_castle.remove(index);
-                }
-                if board.can_castle.contains(&4) {
-                    let index = board.can_castle.iter().position(|&x| x == 4).unwrap();
-                    board.can_castle.remove(index);
-                }
-            }
-
-            // if from or to is 0 then remove queen side castling for black
-            if piece_move.from == 0 || piece_move.to == 0 {
-                if board.can_castle.contains(&1) {
-                    let index = board.can_castle.iter().position(|&x| x == 1).unwrap();
-                    board.can_castle.remove(index);
-                }
-            } else if piece_move.from == 7 || piece_move.to == 7 {
-                if board.can_castle.contains(&2) {
-                    let index = board.can_castle.iter().position(|&x| x == 2).unwrap();
-                    board.can_castle.remove(index);
-                }
-            } else if piece_move.from == 56 || piece_move.to == 56 {
-                if board.can_castle.contains(&3) {
-                    let index = board.can_castle.iter().position(|&x| x == 3).unwrap();
-                    board.can_castle.remove(index);
-                }
-            } else if piece_move.from == 63 || piece_move.to == 63 {
-                if board.can_castle.contains(&4) {
-                    let index = board.can_castle.iter().position(|&x| x == 4).unwrap();
-                    board.can_castle.remove(index);
-                }
-            }
-
-            // if king moves for casting call move drag element
             let move_diff = piece_move.from - piece_move.to;
+            if piece_move.piece == ChessPiece::BPawn || piece_move.piece == ChessPiece::WPawn {
+                let is_enp: (bool, i32) = is_enpassant_move(from, to, piece_move.piece, &old_fen);
+                // move pices if enpassant
+                if is_enp.0 {
+                    let enp_pos = if piece_move.piece == ChessPiece::BPawn {
+                        to - 8
+                    } else {
+                        to + 8
+                    };
+                    self.move_drag_element(board_node.clone(), enp_pos, to);
+                }
+            }
 
             if piece_move.piece == ChessPiece::BKing && move_diff.abs() == 2 {
                 self.move_drag_element(
@@ -222,7 +181,7 @@ impl ColorRectVirtual for Square {
 
 impl Square {
     pub fn move_drag_element(&self, board: Gd<Node>, from: i32, to: i32) {
-        println!("move_drag_element {:} {:}", from, to);
+        // println!("move_drag_element {:} {:}", from, to);
         let board = board.try_cast::<Board>();
         if board.is_none() {
             return;
@@ -230,11 +189,11 @@ impl Square {
         let board = &mut board.unwrap();
         let from_node = board.get_child(from);
         if from_node.is_none() {
-            println!("from_node is none");
+            // println!("from_node is none");
             return;
         }
         let from_node = from_node.unwrap();
-        println!("from_node {:}", from_node);
+        // println!("from_node {:}", from_node);
         let to_node = board.get_child(to).unwrap();
         let from_node = from_node.try_cast::<PlaceCenter>();
         if from_node.is_none() {
@@ -242,7 +201,7 @@ impl Square {
         }
         let mut from_node = from_node.unwrap();
         let from_centre_node_drag = from_node.get_child(1);
-        println!("from_node {:}", from_node);
+        // println!("from_node {:}", from_node);
 
         if from_centre_node_drag.is_none() {
             return;
@@ -306,7 +265,6 @@ impl Square {
                 continue;
             }
         }
-        godot_print!("c:{}", c);
         return c;
     }
 }
@@ -351,8 +309,6 @@ pub struct Board {
     #[base]
     pub fen: String,
     node: Base<GridContainer>,
-    can_enpassant: Vec<i32>,
-    can_castle: Vec<i32>,
 }
 
 #[godot_api]
@@ -363,16 +319,17 @@ impl GridContainerVirtual for Board {
         node.set_columns(8);
         node.add_theme_constant_override(StringName::from("hseparation"), 0);
         node.add_theme_constant_override(StringName::from("vseparation"), 0);
-        let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR".to_string();
-        let mut board = Self {
+        let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0".to_string();
+        let board = Self {
             node,
             fen: fen.clone(),
-            can_enpassant: vec![],
-            can_castle: vec![1, 2, 3, 4],
         };
-        board.create_grid();
-        board.add_pieces();
         board
+    }
+
+    fn ready(&mut self) {
+        self.create_grid();
+        self.add_pieces();
     }
 }
 
@@ -385,7 +342,7 @@ impl Board {
                 let node = node.instantiate().unwrap();
                 let mut node: Gd<Square> = node.cast::<Square>();
                 node.add_theme_constant_override(StringName::from("separation"), 0);
-
+                node.set_scale(Vector2::new(0.125, 0.125));
                 let centre = load::<PackedScene>("res://place_center.tscn");
                 let centre = centre.instantiate().unwrap();
                 let mut centre: Gd<PlaceCenter> = centre.cast::<PlaceCenter>();
@@ -400,13 +357,14 @@ impl Board {
         }
     }
     fn add_pieces(&mut self) {
+        println!("add_pieces");
         let array_fen = fen_to_board(&self.fen);
 
         for i in 0..8 {
             for j in 0..8 {
                 let piece = array_fen[i * 8 + j];
                 let mut squre_centre_node = self.node.get_child((i * 8 + j) as i32).unwrap();
-                godot_print!("squre_node {:?}", squre_centre_node);
+                // godot_print!("squre_node {:?}", squre_centre_node);
                 let centre = load::<PackedScene>("res://place_center_drag.tscn");
                 let centre = centre.instantiate().unwrap();
                 let mut centre = centre.cast::<PlaceCenterDrag>();
@@ -442,6 +400,29 @@ impl Board {
                 }
                 squre_centre_node.add_child(centre.clone().upcast::<Node>());
             }
+        }
+    }
+
+    fn reacreate_board(&mut self) {
+        Board::remove_all_children(&mut self.node);
+        self.create_grid();
+        self.add_pieces();
+        self.node.get_tree();
+    }
+    fn remove_all_children(node: &mut Node) {
+        // iterate over all children and remove them
+        let children: Array<Gd<Node>> = node.get_children();
+        let child_len = children.len() as i32;
+        for i in 0..child_len {
+            let child = node.get_child(i);
+            if child.is_none() {
+                continue;
+            }
+            println!("child {:?}", child);
+            let mut child = child.unwrap();
+            Board::remove_all_children(&mut child);
+            node.remove_child(child);
+            node.queue_free()
         }
     }
 }

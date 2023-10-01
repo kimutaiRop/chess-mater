@@ -1,4 +1,6 @@
-use crate::interface::chessboard::piece::{ChessPiece, Color};
+use crate::interface::chessboard::piece::{fen_to_board, ChessPiece, Color};
+
+use super::capture::in_check;
 
 pub fn bishop_possible_squares(
     board_pieces: &[ChessPiece; 64],
@@ -99,19 +101,6 @@ pub fn queen_attacking_squares(
 ) -> Vec<i32> {
     let mut squares: Vec<i32> = vec![];
 
-    // Combine the directions of rook and bishop to cover all directions
-    let directions: [(i32, i32); 8] = [
-        (1, 0),
-        (-1, 0),
-        (0, 1),
-        (0, -1),
-        (1, 1),
-        (1, -1),
-        (-1, 1),
-        (-1, -1),
-    ];
-
-    // use both rook and bishop functions
     let bishop_squares = bishop_possible_squares(board_pieces, piece, position);
     let rook_squares = rook_possible_squares(board_pieces, piece, position);
 
@@ -171,8 +160,8 @@ pub fn pawn_possible_squares(
     board: &[ChessPiece; 64],
     piece: ChessPiece,
     position: i32,
+    en_passant: Option<i32>,
 ) -> Vec<i32> {
-    // black ,oves from 1st to 8th rank
     let mut squares: Vec<i32> = vec![];
     let color = piece.color();
     let mut direction = 1;
@@ -183,30 +172,245 @@ pub fn pawn_possible_squares(
     let x = position / 8;
     let y = position % 8;
 
-    if board[((x + direction) * 8 + y) as usize] == ChessPiece::None {
-        squares.push((x + direction) * 8 + y);
+    // Check one square forward
+    let target_square = (x + direction) * 8 + y;
+    if target_square >= 0 && target_square < 64 && board[target_square as usize] == ChessPiece::None
+    {
+        squares.push(target_square);
     }
 
+    // Check two squares forward if it's the pawn's initial move
     if (color == Color::White && x == 6) || (color == Color::Black && x == 1) {
-        // Check if the square two squares in front of the pawn is empty
-        if board[((x + 2 * direction) * 8 + y) as usize] == ChessPiece::None {
-            squares.push((x + 2 * direction) * 8 + y);
+        let target_square_2 = (x + 2 * direction) * 8 + y;
+        if target_square_2 >= 0
+            && target_square_2 < 64
+            && board[target_square_2 as usize] == ChessPiece::None
+        {
+            squares.push(target_square_2);
         }
     }
 
+    // Check for en passant captures
+    if let Some(en_passant_square) = en_passant {
+        let en_passant_x = en_passant_square / 8;
+        let en_passant_y = en_passant_square % 8;
+
+        if en_passant_x == x && (en_passant_y == y - 1 || en_passant_y == y + 1) {
+            // if black add +8, if white add -8
+            squares.push(en_passant_square + 8 * direction);
+        }
+    }
+
+    let mut diagonal_squares: Vec<i32> = vec![];
+    let mut diagonal_squares_2: Vec<i32> = vec![];
     if y > 0 {
-        let target_piece = board[((x + direction) * 8 + y - 1) as usize];
-        if target_piece != ChessPiece::None && target_piece.color() != color {
-            squares.push((x + direction) * 8 + y - 1);
-        }
+        diagonal_squares.push((x + direction) * 8 + y - 1);
     }
-
     if y < 7 {
-        let target_piece = board[((x + direction) * 8 + y + 1) as usize];
-        if target_piece != ChessPiece::None && target_piece.color() != color {
-            squares.push((x + direction) * 8 + y + 1);
+        diagonal_squares_2.push((x + direction) * 8 + y + 1);
+    }
+
+    for square in diagonal_squares {
+        if square >= 0 && square < 64 {
+            let target_piece = board[square as usize];
+            if target_piece != ChessPiece::None && target_piece.color() != color {
+                squares.push(square);
+            }
         }
     }
 
+    for square in diagonal_squares_2 {
+        if square >= 0 && square < 64 {
+            let target_piece = board[square as usize];
+            if target_piece != ChessPiece::None && target_piece.color() != color {
+                squares.push(square);
+            }
+        }
+    }
+
+    squares
+}
+
+pub fn is_enpassant_move(from: i32, to: i32, piece: ChessPiece, fen: &str) -> (bool, i32) {
+    let board = fen_to_board(fen);
+    let color = piece.color();
+    let mut direction = 1;
+    if color == Color::White {
+        direction = -1;
+    }
+
+    let x = from / 8;
+    let y = from % 8;
+
+    let piece_square = if color == Color::White {
+        to + 8
+    } else {
+        to - 8
+    };
+
+    // determine is the move thta happened is to empty diagonal square
+    let mut diagonal_squares: Vec<i32> = vec![];
+    let mut diagonal_squares_2: Vec<i32> = vec![];
+    let mut squares = vec![];
+
+    // diagonal squares to from
+    if y > 0 {
+        diagonal_squares.push((x + direction) * 8 + y - 1);
+    }
+    if y < 7 {
+        diagonal_squares_2.push((x + direction) * 8 + y + 1);
+    }
+    for square in diagonal_squares {
+        squares.push(square);
+    }
+
+    for square in diagonal_squares_2 {
+        squares.push(square);
+    }
+
+
+    (squares.contains(&to), piece_square)
+}
+
+pub fn king_possible_squares(
+    board_pieces: &[ChessPiece; 64],
+    piece: ChessPiece,
+    position: i32,
+    castle_rules: &str, // "KQkq"
+) -> Vec<i32> {
+    let mut squares: Vec<i32> = vec![];
+    let color = piece.color();
+
+    // Define all possible king moves
+    let moves: [(i32, i32); 8] = [
+        (1, 1),
+        (1, -1),
+        (-1, 1),
+        (-1, -1),
+        (1, 0),
+        (-1, 0),
+        (0, 1),
+        (0, -1),
+    ];
+
+    for &(dx, dy) in &moves {
+        let x = position / 8;
+        let y = position % 8;
+        let new_x = x + dx;
+        let new_y = y + dy;
+
+        // Check if the new position is within the bounds of the board
+        if new_x >= 0 && new_x < 8 && new_y >= 0 && new_y < 8 {
+            let new_position = new_x * 8 + new_y;
+            let target_piece = board_pieces[new_position as usize];
+
+            if target_piece == ChessPiece::None {
+                // at this position validate no check
+                let mut board = board_pieces.clone();
+                board[new_position as usize] = piece;
+                let is_check = in_check(&mut board, color, Some(new_position));
+                if !is_check {
+                    squares.push(new_position);
+                }
+            }
+            if target_piece != ChessPiece::None {
+                // if the piece is an opponent's piece, it's a valid attack square
+                if target_piece.color() != color {
+                    // at this position validate no check
+                    let mut board = board_pieces.clone();
+                    board[new_position as usize] = piece;
+                    let is_check = in_check(&mut board, color, Some(new_position));
+                    if !is_check {
+                        squares.push(new_position);
+                    }
+                }
+            }
+        }
+    }
+
+    // Check for castling moves
+    if color == Color::Black {
+        // Check if the balck king is in its initial position
+        if position == 4 {
+            // Check if the balck king-side rook is in its initial position
+            if castle_rules.contains('k') {
+                // Check if the squares between the king and the rook are empty
+                if board_pieces[5] == ChessPiece::None && board_pieces[6] == ChessPiece::None {
+                    // Check if the king is not in check
+                    let mut board = board_pieces.clone();
+                    let is_check = in_check(&mut board, color, Some(5));
+                    if !is_check {
+                        // Check if the king is not passing through a square that is attacked by an opponent's piece
+                        let mut board = board_pieces.clone();
+                        let is_check = in_check(&mut board, color, Some(6));
+                        if !is_check {
+                            squares.push(6);
+                        }
+                    }
+                }
+            }
+            // Check if the black queen-side rook is in its initial position
+            if castle_rules.contains('q') {
+                // Check if the squares between the king and the rook are empty
+                if board_pieces[3] == ChessPiece::None
+                    && board_pieces[2] == ChessPiece::None
+                    && board_pieces[1] == ChessPiece::None
+                {
+                    // Check if the king is not in check
+                    let mut board = board_pieces.clone();
+                    let is_check = in_check(&mut board, color, Some(3));
+                    if !is_check {
+                        // Check if the king is not passing through a square that is attacked by an opponent's piece
+                        let mut board = board_pieces.clone();
+                        let is_check = in_check(&mut board, color, Some(2));
+                        if !is_check {
+                            squares.push(2);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // Check if the white king is in its initial position
+        if position == 60 {
+            // Check if the white king-side rook is in its initial position
+            if castle_rules.contains('K') {
+                // Check if the squares between the king and the rook are empty
+                if board_pieces[61] == ChessPiece::None && board_pieces[62] == ChessPiece::None {
+                    // Check if the king is not in check
+                    let mut board = board_pieces.clone();
+                    let is_check = in_check(&mut board, color, Some(61));
+                    if !is_check {
+                        // Check if the king is not passing through a square that is attacked by an opponent's piece
+                        let mut board = board_pieces.clone();
+                        let is_check = in_check(&mut board, color, Some(62));
+                        if !is_check {
+                            squares.push(62);
+                        }
+                    }
+                }
+            }
+            // Check if the white queen-side rook is in its initial position
+            if castle_rules.contains('Q') {
+                // Check if the squares between the king and the rook are empty
+                if board_pieces[59] == ChessPiece::None
+                    && board_pieces[58] == ChessPiece::None
+                    && board_pieces[57] == ChessPiece::None
+                {
+                    // Check if the king is not in check
+                    let mut board = board_pieces.clone();
+                    let is_check = in_check(&mut board, color, Some(59));
+                    if !is_check {
+                        // Check if the king is not passing through a square that is attacked by an opponent's piece
+                        let mut board = board_pieces.clone();
+                        let is_check = in_check(&mut board, color, Some(58));
+                        if !is_check {
+                            squares.push(58);
+                        }
+                    }
+                }
+            }
+        }
+    }
     squares
 }

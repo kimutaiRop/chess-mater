@@ -1,31 +1,8 @@
-use crate::interface::chessboard::piece::{board_to_fen, fen_to_board, ChessPiece, Color};
+use crate::interface::chessboard::piece::{ChessPiece, Color};
 
-use super::{
-    path::{knight_possible_squares, queen_attacking_squares},
-    play::Move,
-};
+use super::path::{knight_possible_squares, queen_attacking_squares};
 
-pub fn capture(move_: &Move) -> (String, bool) {
-    let board_pieces: [ChessPiece; 64] = fen_to_board(&move_.fen.clone());
-    let piece = board_pieces[move_.from as usize];
-    let color = piece.color();
-
-    // get color of piece to be captured
-    let capture_piece = board_pieces[move_.to as usize];
-    let capture_color = capture_piece.color();
-
-    if color == capture_color {
-        return (move_.fen.clone(), false);
-    }
-
-    let mut new_board = board_pieces.clone();
-    new_board[move_.to as usize] = piece;
-    new_board[move_.from as usize] = ChessPiece::None;
-    let new_fen = board_to_fen(&new_board);
-    (new_fen, true)
-}
-
-pub fn in_check(board: &[ChessPiece; 64], color: Color) -> bool {
+pub fn in_check(board: &[ChessPiece; 64], color: Color, en_passant: Option<i32>) -> bool {
     let king = if color == Color::White {
         ChessPiece::WKing
     } else {
@@ -55,7 +32,7 @@ pub fn in_check(board: &[ChessPiece; 64], color: Color) -> bool {
 
         match piece {
             ChessPiece::BPawn | ChessPiece::WPawn => {
-                attacking_squares = super::path::pawn_possible_squares(board, piece, piece_pos);
+                attacking_squares = super::path::pawn_possible_squares(board, piece, piece_pos, en_passant);
             }
             ChessPiece::BBishop | ChessPiece::WBishop => {
                 attacking_squares = super::path::bishop_possible_squares(board, piece, piece_pos);
@@ -71,16 +48,10 @@ pub fn in_check(board: &[ChessPiece; 64], color: Color) -> bool {
             }
             _ => continue, // Skip other pieces
         }
-        println!(
-            "{:?} attacking_squares: {:?} kibng pos : {:?}",
-            piece, attacking_squares, king_pos
-        );
         if attacking_squares.contains(&king_pos) {
             return true;
         }
     }
-
-    // If no opponent piece can attack the king's position, the king is not in check
     false
 }
 
@@ -94,23 +65,4 @@ fn get_pieces_by_color(board: &[ChessPiece; 64], color: Color) -> Vec<(ChessPiec
         }
     }
     pieces
-}
-
-
-// get king by color
-pub fn get_king(board: &[ChessPiece; 64], color: Color) -> i32 {
-    let king = if color == Color::White {
-        ChessPiece::WKing
-    } else {
-        ChessPiece::BKing
-    };
-
-    let mut king_pos = 0;
-    for (i, piece) in board.iter().enumerate() {
-        if *piece == king {
-            king_pos = i;
-            break;
-        }
-    }
-    king_pos as i32
 }

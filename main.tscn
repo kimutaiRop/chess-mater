@@ -5,7 +5,8 @@
 [node name="Node2D" type="Node2D"]
 
 [node name="Board" parent="." instance=ExtResource("1_7pr61")]
-offset_left = 158.0
-offset_top = 31.0
-offset_right = 1158.0
-offset_bottom = 619.0
+offset_left = 142.0
+offset_top = 29.0
+offset_right = 1142.0
+offset_bottom = 617.0
+alignment = 1
