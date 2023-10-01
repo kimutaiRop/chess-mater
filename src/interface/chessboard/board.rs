@@ -169,6 +169,7 @@ impl ColorRectVirtual for Square {
                 if centre_node_drag_child.is_some() {
                     let centre_node_drag_child = centre_node_drag_child.unwrap();
                     centre_node_drag.remove_child(centre_node_drag_child);
+                    centre_node_drag.queue_free();
                 }
                 square_parent_node.remove_child(centre_node_drag.clone());
                 old_square_parent_node.add_child(centre_node_drag.clone());
