@@ -133,49 +133,49 @@ impl ColorRectVirtual for Square {
             board.fen = allowed.0.to_string();
             piece.moved = true;
             piece.times_moved += 1;
-            // board.reacreate_board();
+            board.reacreate_board();
 
-            let move_diff = piece_move.from - piece_move.to;
-            if piece_move.piece == ChessPiece::BPawn || piece_move.piece == ChessPiece::WPawn {
-                let is_enp: (bool, i32) = is_enpassant_move(from, to, piece_move.piece, &old_fen);
-                // move pices if enpassant
-                if is_enp.0 {
-                    let enp_pos = if piece_move.piece == ChessPiece::BPawn {
-                        to - 8
-                    } else {
-                        to + 8
-                    };
-                    self.move_drag_element(board_node.clone(), enp_pos, to);
-                }
-            }
+            // let move_diff = piece_move.from - piece_move.to;
+            // if piece_move.piece == ChessPiece::BPawn || piece_move.piece == ChessPiece::WPawn {
+            //     let is_enp: (bool, i32) = is_enpassant_move(from, to, piece_move.piece, &old_fen);
+            //     // move pices if enpassant
+            //     if is_enp.0 {
+            //         let enp_pos = if piece_move.piece == ChessPiece::BPawn {
+            //             to - 8
+            //         } else {
+            //             to + 8
+            //         };
+            //         self.move_drag_element(board_node.clone(), enp_pos, to);
+            //     }
+            // }
 
-            if piece_move.piece == ChessPiece::BKing && move_diff.abs() == 2 {
-                self.move_drag_element(
-                    board_node,
-                    if move_diff > 0 { 0 } else { 7 },
-                    if move_diff > 0 { 3 } else { 5 },
-                );
-            } else if piece_move.piece == ChessPiece::WKing && move_diff.abs() == 2 {
-                self.move_drag_element(
-                    board_node,
-                    if move_diff > 0 { 56 } else { 63 },
-                    if move_diff > 0 { 59 } else { 61 },
-                );
-            }
+            // if piece_move.piece == ChessPiece::BKing && move_diff.abs() == 2 {
+            //     self.move_drag_element(
+            //         board_node,
+            //         if move_diff > 0 { 0 } else { 7 },
+            //         if move_diff > 0 { 3 } else { 5 },
+            //     );
+            // } else if piece_move.piece == ChessPiece::WKing && move_diff.abs() == 2 {
+            //     self.move_drag_element(
+            //         board_node,
+            //         if move_diff > 0 { 56 } else { 63 },
+            //         if move_diff > 0 { 59 } else { 61 },
+            //     );
+            // }
 
-            if centre_node_drag.is_some() {
-                let mut centre_node_drag = centre_node_drag.unwrap();
-                let centre_node_drag_child = centre_node_drag.get_child(0);
-                if centre_node_drag_child.is_some() {
-                    let centre_node_drag_child = centre_node_drag_child.unwrap();
-                    centre_node_drag.remove_child(centre_node_drag_child);
-                    centre_node_drag.queue_free();
-                }
-                square_parent_node.remove_child(centre_node_drag.clone());
-                old_square_parent_node.add_child(centre_node_drag.clone());
-            }
-            old_square_parent_node.remove_child(new_centre_drag_node.clone().upcast::<Node>());
-            square_parent_node.add_child(new_centre_drag_node.upcast::<Node>());
+            // if centre_node_drag.is_some() {
+            //     let mut centre_node_drag = centre_node_drag.unwrap();
+            //     let centre_node_drag_child = centre_node_drag.get_child(0);
+            //     if centre_node_drag_child.is_some() {
+            //         let centre_node_drag_child = centre_node_drag_child.unwrap();
+            //         centre_node_drag.remove_child(centre_node_drag_child);
+            //         centre_node_drag.queue_free();
+            //     }
+            //     square_parent_node.remove_child(centre_node_drag.clone());
+            //     old_square_parent_node.add_child(centre_node_drag.clone());
+            // }
+            // old_square_parent_node.remove_child(new_centre_drag_node.clone().upcast::<Node>());
+            // square_parent_node.add_child(new_centre_drag_node.upcast::<Node>());
         }
     }
 }
@@ -405,10 +405,10 @@ impl Board {
     }
 
     fn reacreate_board(&mut self) {
-        Board::remove_all_children(&mut self.node);
+        // Board::remove_all_children(&mut self.node);
+        self.node.queue_free();
         self.create_grid();
         self.add_pieces();
-        self.node.get_tree();
     }
     fn remove_all_children(node: &mut Node) {
         // iterate over all children and remove them
