@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://8mjh6ulpxmei"]
+
+[node name="Board" type="VBoxContainer"]
+offset_left = 164.0
+offset_top = 35.0
+offset_right = 1164.0
+offset_bottom = 633.0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+custom_minimum_size = Vector2(1000, 0)
+layout_mode = 2
+
+[node name="Board" type="Board" parent="HBoxContainer"]
+layout_mode = 2

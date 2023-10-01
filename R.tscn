@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bplf4tt44j78h"]
+
+[ext_resource type="Texture2D" uid="uid://dc61m0aavu026" path="res://pices/R.svg" id="1_tff7g"]
+
+[node name="Sprite2D" type="Piece"]
+texture = ExtResource("1_tff7g")

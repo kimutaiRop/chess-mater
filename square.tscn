@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cfgsrqakfpi5w"]
+
+[node name="Square" type="Square"]
+custom_minimum_size = Vector2(70, 70)
+offset_right = 40.0
+offset_bottom = 40.0

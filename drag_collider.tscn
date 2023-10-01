@@ -1,0 +1,3 @@
+[gd_scene format=3 uid="uid://sr0o4vhu5w13"]
+
+[node name="DragCollider" type="DragCollider"]

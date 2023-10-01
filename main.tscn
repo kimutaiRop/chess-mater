@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://o80xdhp0mgml"]
+
+[ext_resource type="PackedScene" uid="uid://8mjh6ulpxmei" path="res://board.tscn" id="1_7pr61"]
+
+[node name="Node2D" type="Node2D"]
+
+[node name="Board" parent="." instance=ExtResource("1_7pr61")]
+offset_left = 158.0
+offset_top = 31.0
+offset_right = 1158.0
+offset_bottom = 619.0
