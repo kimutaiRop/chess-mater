@@ -392,7 +392,7 @@ fn king_move(move_: &Move) -> (String, bool) {
     if col_diff.abs() > 1 {
         return castle_move(move_);
     }
-
+    println!("possible_sqrs: {:?}", possible_sqrs);
     if possible_sqrs.contains(&move_.to) {
         // target square does not contain a piece of the same color
         let move_sqr = board_pieces[move_.to as usize];
