@@ -1,6 +1,6 @@
 use godot::engine::{
     CenterContainer, CenterContainerVirtual, CollisionShape2D, CollisionShape2DVirtual, ColorRect,
-    ColorRectVirtual, VBoxContainer,
+    ColorRectVirtual,
 };
 use godot::engine::{GridContainer, GridContainerVirtual};
 use godot::prelude::*;
@@ -90,15 +90,14 @@ impl ColorRectVirtual for Square {
         if board.is_none() {
             return;
         }
-        let board = &mut board.unwrap();
-        let board = &mut board.bind_mut();
+        // let board = &mut board.unwrap();
+        // let board = &mut board.bind_mut();
 
         let square_parent_node = square_parent.clone().try_cast::<PlaceCenter>();
         if square_parent_node.is_none() {
             return;
         }
-        let mut square_parent_node = square_parent_node.unwrap();
-        let centre_node_drag = square_parent_node.get_child(1);
+        let square_parent_node = square_parent_node.unwrap();
 
         let new_centre_drag_node = data.try_to::<Gd<PlaceCenterDrag>>();
         if new_centre_drag_node.is_ok() {
@@ -112,105 +111,142 @@ impl ColorRectVirtual for Square {
             if old_square_parent_node.is_none() {
                 return;
             }
-            let mut old_square_parent_node = old_square_parent_node.unwrap();
-            let piece_node = new_centre_drag_node.get_child(0).unwrap();
-            let mut piece = piece_node.try_cast::<Piece>().unwrap();
-            let mut piece = piece.bind_mut();
+            let old_square_parent_node = old_square_parent_node.unwrap();
             let from = self.get_square_index(&old_square_parent_node);
             let to = self.get_square_index(&square_parent_node);
-            let piece_move = Move {
-                from: from,
-                to: to,
-                piece: piece.piece,
-                moved: piece.moved,
-                fen: board.fen.clone(),
-            };
-            let allowed = make_move(&piece_move);
-            if !allowed.1 {
-                return;
-            }
-            let old_fen = board.fen.clone();
-            board.fen = allowed.0.to_string();
-            piece.moved = true;
-            piece.times_moved += 1;
-
-            let move_diff = piece_move.from - piece_move.to;
-            if piece_move.piece == ChessPiece::BPawn || piece_move.piece == ChessPiece::WPawn {
-                let pos_moved = enpassant_moves(from, piece_move.piece, &old_fen);
-                println!("is_enp {:?}", pos_moved);
-                if pos_moved.contains(&to) {
-                    let enp_pos = if piece_move.piece == ChessPiece::BPawn {
-                        to - 8
-                    } else {
-                        to + 8
-                    };
-                    let empassant_pawn = board_node.get_child(enp_pos).unwrap();
-                    let empassant_pawn = empassant_pawn.try_cast::<PlaceCenter>();
-                    if empassant_pawn.is_none() {
-                        return;
-                    }
-                    let mut empassant_pawn = empassant_pawn.unwrap();
-                    let drag_empassant_pawn = empassant_pawn.get_child(1);
-                    empassant_pawn.remove_child(drag_empassant_pawn.unwrap());
-                }
-            }
-
-            if piece_move.piece == ChessPiece::BKing && move_diff.abs() == 2 {
-                self.move_drag_element(
-                    &board_node,
-                    if move_diff > 0 { 0 } else { 7 },
-                    if move_diff > 0 { 3 } else { 5 },
-                );
-            } else if piece_move.piece == ChessPiece::WKing && move_diff.abs() == 2 {
-                self.move_drag_element(
-                    &board_node,
-                    if move_diff > 0 { 56 } else { 63 },
-                    if move_diff > 0 { 59 } else { 61 },
-                );
-            }
-            old_square_parent_node.remove_child(new_centre_drag_node.clone().upcast::<Node>());
-            if centre_node_drag.is_some() {
-                let mut centre_node_drag = centre_node_drag.unwrap();
-                let centre_node_drag_child = centre_node_drag.get_child(0);
-                if centre_node_drag_child.is_some() {
-                    let mut centre_node_drag_child = centre_node_drag_child.unwrap();
-                    centre_node_drag_child.queue_free();
-                    centre_node_drag.remove_child(centre_node_drag_child);
-                }
-                square_parent_node.remove_child(centre_node_drag.clone());
-                old_square_parent_node.add_child(centre_node_drag.clone());
-            }
-            square_parent_node.add_child(new_centre_drag_node.upcast::<Node>());
+            Square::move_piece(from, to, &board_node);
         }
     }
 }
 
 impl Square {
-    pub fn move_drag_element(&self, board: &Gd<Node>, from: i32, to: i32) {
+    fn move_piece(from: i32, to: i32, board_node: &Gd<Node>) -> bool {
+        let from_node = board_node.get_child(from).unwrap();
+        let from_node = from_node.try_cast::<PlaceCenter>();
+        if from_node.is_none() {
+            return false;
+        }
+        let mut from_node = from_node.unwrap();
+        let from_centre_node_drag = from_node.get_child(1);
+        if from_centre_node_drag.is_none() {
+            return false;
+        }
+
+        let piece = from_centre_node_drag.clone().unwrap().get_child(0);
+        if piece.is_none() {
+            return false;
+        }
+        let mut piece = piece.unwrap().try_cast::<Piece>().unwrap();
+        let mut piece = piece.bind_mut();
+
+        let board = board_node.clone().try_cast::<Board>();
+        if board.is_none() {
+            return false;
+        }
+        let board = &mut board.unwrap();
+        let board = &mut board.bind_mut();
+
+        let piece_move = Move {
+            from: from,
+            to: to,
+            piece: piece.piece,
+            moved: piece.moved,
+            fen: board.fen.clone(),
+        };
+        let allowed = make_move(&piece_move);
+        if !allowed.1 {
+            return false;
+        }
+        let old_fen = board.fen.clone();
+        board.fen = allowed.0.to_string();
+        piece.moved = true;
+        piece.times_moved += 1;
+
+        let move_diff = piece_move.from - piece_move.to;
+        if piece_move.piece == ChessPiece::BPawn || piece_move.piece == ChessPiece::WPawn {
+            let pos_moved = enpassant_moves(from, piece_move.piece, &old_fen);
+            if pos_moved.contains(&to) {
+                let enp_pos = if piece_move.piece == ChessPiece::BPawn {
+                    to - 8
+                } else {
+                    to + 8
+                };
+                let empassant_pawn = board_node.get_child(enp_pos).unwrap();
+                let empassant_pawn = empassant_pawn.try_cast::<PlaceCenter>();
+                if empassant_pawn.is_none() {
+                    return false;
+                }
+                let mut empassant_pawn = empassant_pawn.unwrap();
+                let drag_empassant_pawn = empassant_pawn.get_child(1);
+                empassant_pawn.remove_child(drag_empassant_pawn.unwrap());
+            }
+        }
+        if piece_move.piece == ChessPiece::BKing && move_diff.abs() == 2 {
+            println!("move_diff {:}", move_diff);
+            let castle = Square::move_drag_element(
+                &board_node,
+                if move_diff > 0 { 0 } else { 7 },
+                if move_diff > 0 { 3 } else { 5 },
+            );
+            if !castle {
+                return false;
+            }
+        } else if piece_move.piece == ChessPiece::WKing && move_diff.abs() == 2 {
+            println!("move_diff {:}", move_diff);
+
+            let castle = Square::move_drag_element(
+                &board_node,
+                if move_diff > 0 { 56 } else { 63 },
+                if move_diff > 0 { 59 } else { 61 },
+            );
+            if !castle {
+                return false;
+            }
+        }
+
+        from_node.remove_child(from_centre_node_drag.clone().unwrap());
+
+        let to_node = board_node.get_child(to).unwrap();
+        let to_node = to_node.try_cast::<PlaceCenter>();
+        if to_node.is_none() {
+            return false;
+        }
+        let mut to_node = to_node.unwrap();
+        let to_centre_node_drag = to_node.get_child(1);
+        if to_centre_node_drag.is_some() {
+            to_node.remove_child(to_centre_node_drag.unwrap());
+        }
+        to_node.add_child(from_centre_node_drag.unwrap());
+        return true;
+    }
+    pub fn move_drag_element(board: &Gd<Node>, from: i32, to: i32) -> bool {
+        println!("move_drag_element {:} {:}", from, to);
         // println!("move_drag_element {:} {:}", from, to);
         let board = board.clone().try_cast::<Board>();
         if board.is_none() {
-            return;
+            return false;
         }
         let board = &mut board.unwrap();
         let from_node = board.get_child(from);
         if from_node.is_none() {
-            // println!("from_node is none");
-            return;
+            println!("from_node is none 1");
+            return false;
         }
         let from_node = from_node.unwrap();
         // println!("from_node {:}", from_node);
         let to_node = board.get_child(to).unwrap();
         let from_node = from_node.try_cast::<PlaceCenter>();
         if from_node.is_none() {
-            return;
+            println!("from_node is none 2");
+            return false;
         }
         let mut from_node = from_node.unwrap();
         let from_centre_node_drag = from_node.get_child(1);
         // println!("from_node {:}", from_node);
 
         if from_centre_node_drag.is_none() {
-            return;
+            println!("from_node is none 3");
+            return false;
         }
         let from_centre_node_drag = from_centre_node_drag.unwrap();
         let from_centre_node_drag = from_centre_node_drag.try_cast::<PlaceCenterDrag>();
@@ -219,34 +255,22 @@ impl Square {
 
         let to_node = to_node.try_cast::<PlaceCenter>();
         if to_node.is_none() {
-            return;
+            println!("to_node is none 1");
+            return false;
         }
         let mut to_node = to_node.unwrap();
-        let to_centre_node_drag = to_node.get_child(1);
-        if to_centre_node_drag.is_none() {
-            return;
-        }
-        let to_centre_node_drag = to_centre_node_drag.unwrap();
-        let to_centre_node_drag = to_centre_node_drag.try_cast::<PlaceCenterDrag>();
 
         if from_centre_node_drag.is_none() {
-            return;
+            println!("from_centre_node_drag is none");
+            return false;
         }
         let from_centre_node_drag = from_centre_node_drag.unwrap();
-        if to_centre_node_drag.is_none() {
-            return;
-        }
-        let to_centre_node_drag = to_centre_node_drag.unwrap();
 
         // remove from node
         from_node.remove_child(from_centre_node_drag.clone().upcast::<Node>());
-        // remove to node
-        to_node.remove_child(to_centre_node_drag.clone().upcast::<Node>());
 
-        // add to node
-        from_node.add_child(to_centre_node_drag.clone().upcast::<Node>());
-        // add from node
         to_node.add_child(from_centre_node_drag.clone().upcast::<Node>());
+        return true;
     }
     pub fn get_square_index(&self, node: &Gd<PlaceCenter>) -> i32 {
         let parent = node.get_parent();
@@ -407,58 +431,6 @@ impl Board {
                 }
                 squre_centre_node.add_child(centre.clone().upcast::<Node>());
             }
-        }
-    }
-
-    fn reacreate_board(&mut self) {
-        // Board::remove_all_children(&mut self.node);
-        let parent = self.node.get_parent();
-        if parent.is_none() {
-            return;
-        }
-        let parent = parent.unwrap();
-        let parent = parent.try_cast::<Node>();
-        if parent.is_none() {
-            return;
-        }
-        let mut parent = parent.unwrap();
-        parent.remove_child(self.node.clone().upcast::<Node>());
-        self.node.queue_free();
-        let node = load::<PackedScene>("res://board.tscn");
-        let vbox_node = node.instantiate().unwrap();
-        println!("node {:?}", node);
-        // get child
-        // let mut node: Gd<VBoxContainer> = node.cast::<VBoxContainer>();
-        let hbox_node = vbox_node.get_child(0);
-        println!("child {:?}", hbox_node);
-        let body = hbox_node.unwrap().get_child(0);
-        let body = body.unwrap().try_cast::<Board>();
-        if body.is_none() {
-            return;
-        }
-        let mut body = body.unwrap().clone();
-        let mut body = body.bind_mut();
-        body.fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0".to_string();
-
-        println!("body {:?}", body);
-        parent.add_child(vbox_node.upcast::<Node>());
-        // self.create_grid();
-        // self.add_pieces();
-    }
-    fn remove_all_children(node: &mut Node) {
-        // iterate over all children and remove them
-        let children: Array<Gd<Node>> = node.get_children();
-        let child_len = children.len() as i32;
-        for i in 0..child_len {
-            let child = node.get_child(i);
-            if child.is_none() {
-                continue;
-            }
-            println!("child {:?}", child);
-            let mut child = child.unwrap();
-            Board::remove_all_children(&mut child);
-            node.remove_child(child);
-            node.queue_free()
         }
     }
 }

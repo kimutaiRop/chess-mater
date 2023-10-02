@@ -26,31 +26,40 @@ pub fn in_check(board: &[ChessPiece; 64], color: Color, en_passant: Option<i32>)
 
     // Check if any opponent's pawn, bishop, rook, queen, or knight can attack the king's position
     let opponent_pieces = get_pieces_by_color(board, opponent_color);
-
+    let mut attacking_squares: Vec<i32> = vec![];
     for &(piece, piece_pos) in &opponent_pieces {
-        let attacking_squares: Vec<i32>;
-
         match piece {
             ChessPiece::BPawn | ChessPiece::WPawn => {
-                attacking_squares = super::path::pawn_possible_squares(board, piece, piece_pos, en_passant);
+                attacking_squares
+                    .extend(super::path::pawn_capture_squares(board, piece, piece_pos));
             }
             ChessPiece::BBishop | ChessPiece::WBishop => {
-                attacking_squares = super::path::bishop_possible_squares(board, piece, piece_pos);
+                attacking_squares.extend(super::path::bishop_possible_squares(
+                    board, piece, piece_pos,
+                ));
             }
             ChessPiece::BRook | ChessPiece::WRook => {
-                attacking_squares = super::path::rook_possible_squares(board, piece, piece_pos);
+                attacking_squares
+                    .extend(super::path::rook_possible_squares(board, piece, piece_pos));
             }
             ChessPiece::BQueen | ChessPiece::WQueen => {
-                attacking_squares = queen_attacking_squares(board, piece, piece_pos);
+                attacking_squares.extend(queen_attacking_squares(board, piece, piece_pos));
             }
             ChessPiece::BKnight | ChessPiece::WKnight => {
-                attacking_squares = knight_possible_squares(board, piece, piece_pos);
+                attacking_squares.extend(knight_possible_squares(board, piece, piece_pos));
             }
             _ => continue, // Skip other pieces
         }
-        if attacking_squares.contains(&king_pos) {
-            return true;
-        }
+    }
+    attacking_squares.sort();
+    attacking_squares.dedup();
+    // unique attacking squares
+    println!(
+        "{:?} Attacking squares: {:?}",
+        opponent_color, attacking_squares
+    );
+    if attacking_squares.contains(&king_pos) {
+        return true;
     }
     false
 }
