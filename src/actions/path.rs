@@ -292,8 +292,6 @@ pub fn enpassant_moves(from: i32, piece: ChessPiece, fen: &str) -> Vec<i32> {
     if emp_piece == ChessPiece::None || emp_piece.color() == color {
         return vec![];
     }
-    println!("emp_piece {:?}", emp_piece);
-
     let squares: Vec<i32> = vec![move_sqr];
 
     squares
@@ -328,7 +326,6 @@ pub fn king_possible_squares(
         // Check if the new position is within the bounds of the board
         if new_x >= 0 && new_x < 8 && new_y >= 0 && new_y < 8 {
             let new_position = new_x * 8 + new_y;
-            println!("new_position {:?} {:?}", new_position, color);
             let target_piece = board_pieces[new_position as usize];
 
             if target_piece == ChessPiece::None || target_piece.color() != color {
@@ -455,6 +452,5 @@ pub fn king_possible_squares(
             }
         }
     }
-    println!("squares {:?}", squares);
     squares
 }

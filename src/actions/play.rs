@@ -404,7 +404,10 @@ fn king_move(move_: &Move) -> (String, bool) {
         board_pieces[move_.to as usize] = piece;
         board_pieces[move_.from as usize] = ChessPiece::None;
         let original_rights = move_.fen.split(" ").collect::<Vec<&str>>()[2];
-
+        let is_check = in_check(&board_pieces, piece.color(), None);
+        if is_check {
+            return (move_.fen.clone(), false);
+        }
         let mut rights = String::from(original_rights);
 
         if piece.color() == Color::White {
