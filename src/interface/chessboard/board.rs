@@ -1,11 +1,11 @@
 use godot::engine::{
     CenterContainer, CenterContainerVirtual, CollisionShape2D, CollisionShape2DVirtual, ColorRect,
-    ColorRectVirtual,
+    ColorRectVirtual, VBoxContainer,
 };
 use godot::engine::{GridContainer, GridContainerVirtual};
 use godot::prelude::*;
 
-use crate::actions::path::is_enpassant_move;
+use crate::actions::path::enpassant_moves;
 use crate::actions::play::{make_move, Move};
 use crate::interface::chessboard::piece::string_to_piece;
 
@@ -133,57 +133,62 @@ impl ColorRectVirtual for Square {
             board.fen = allowed.0.to_string();
             piece.moved = true;
             piece.times_moved += 1;
-            board.reacreate_board();
 
-            // let move_diff = piece_move.from - piece_move.to;
-            // if piece_move.piece == ChessPiece::BPawn || piece_move.piece == ChessPiece::WPawn {
-            //     let is_enp: (bool, i32) = is_enpassant_move(from, to, piece_move.piece, &old_fen);
-            //     // move pices if enpassant
-            //     if is_enp.0 {
-            //         let enp_pos = if piece_move.piece == ChessPiece::BPawn {
-            //             to - 8
-            //         } else {
-            //             to + 8
-            //         };
-            //         self.move_drag_element(board_node.clone(), enp_pos, to);
-            //     }
-            // }
+            let move_diff = piece_move.from - piece_move.to;
+            if piece_move.piece == ChessPiece::BPawn || piece_move.piece == ChessPiece::WPawn {
+                let pos_moved = enpassant_moves(from, piece_move.piece, &old_fen);
+                println!("is_enp {:?}", pos_moved);
+                if pos_moved.contains(&to) {
+                    let enp_pos = if piece_move.piece == ChessPiece::BPawn {
+                        to - 8
+                    } else {
+                        to + 8
+                    };
+                    let empassant_pawn = board_node.get_child(enp_pos).unwrap();
+                    let empassant_pawn = empassant_pawn.try_cast::<PlaceCenter>();
+                    if empassant_pawn.is_none() {
+                        return;
+                    }
+                    let mut empassant_pawn = empassant_pawn.unwrap();
+                    let drag_empassant_pawn = empassant_pawn.get_child(1);
+                    empassant_pawn.remove_child(drag_empassant_pawn.unwrap());
+                }
+            }
 
-            // if piece_move.piece == ChessPiece::BKing && move_diff.abs() == 2 {
-            //     self.move_drag_element(
-            //         board_node,
-            //         if move_diff > 0 { 0 } else { 7 },
-            //         if move_diff > 0 { 3 } else { 5 },
-            //     );
-            // } else if piece_move.piece == ChessPiece::WKing && move_diff.abs() == 2 {
-            //     self.move_drag_element(
-            //         board_node,
-            //         if move_diff > 0 { 56 } else { 63 },
-            //         if move_diff > 0 { 59 } else { 61 },
-            //     );
-            // }
-
-            // if centre_node_drag.is_some() {
-            //     let mut centre_node_drag = centre_node_drag.unwrap();
-            //     let centre_node_drag_child = centre_node_drag.get_child(0);
-            //     if centre_node_drag_child.is_some() {
-            //         let centre_node_drag_child = centre_node_drag_child.unwrap();
-            //         centre_node_drag.remove_child(centre_node_drag_child);
-            //         centre_node_drag.queue_free();
-            //     }
-            //     square_parent_node.remove_child(centre_node_drag.clone());
-            //     old_square_parent_node.add_child(centre_node_drag.clone());
-            // }
-            // old_square_parent_node.remove_child(new_centre_drag_node.clone().upcast::<Node>());
-            // square_parent_node.add_child(new_centre_drag_node.upcast::<Node>());
+            if piece_move.piece == ChessPiece::BKing && move_diff.abs() == 2 {
+                self.move_drag_element(
+                    &board_node,
+                    if move_diff > 0 { 0 } else { 7 },
+                    if move_diff > 0 { 3 } else { 5 },
+                );
+            } else if piece_move.piece == ChessPiece::WKing && move_diff.abs() == 2 {
+                self.move_drag_element(
+                    &board_node,
+                    if move_diff > 0 { 56 } else { 63 },
+                    if move_diff > 0 { 59 } else { 61 },
+                );
+            }
+            old_square_parent_node.remove_child(new_centre_drag_node.clone().upcast::<Node>());
+            if centre_node_drag.is_some() {
+                let mut centre_node_drag = centre_node_drag.unwrap();
+                let centre_node_drag_child = centre_node_drag.get_child(0);
+                if centre_node_drag_child.is_some() {
+                    let mut centre_node_drag_child = centre_node_drag_child.unwrap();
+                    centre_node_drag_child.queue_free();
+                    centre_node_drag.remove_child(centre_node_drag_child);
+                }
+                square_parent_node.remove_child(centre_node_drag.clone());
+                old_square_parent_node.add_child(centre_node_drag.clone());
+            }
+            square_parent_node.add_child(new_centre_drag_node.upcast::<Node>());
         }
     }
 }
 
 impl Square {
-    pub fn move_drag_element(&self, board: Gd<Node>, from: i32, to: i32) {
+    pub fn move_drag_element(&self, board: &Gd<Node>, from: i32, to: i32) {
         // println!("move_drag_element {:} {:}", from, to);
-        let board = board.try_cast::<Board>();
+        let board = board.clone().try_cast::<Board>();
         if board.is_none() {
             return;
         }
@@ -329,6 +334,7 @@ impl GridContainerVirtual for Board {
     }
 
     fn ready(&mut self) {
+        println!("ready");
         self.create_grid();
         self.add_pieces();
     }
@@ -406,9 +412,38 @@ impl Board {
 
     fn reacreate_board(&mut self) {
         // Board::remove_all_children(&mut self.node);
+        let parent = self.node.get_parent();
+        if parent.is_none() {
+            return;
+        }
+        let parent = parent.unwrap();
+        let parent = parent.try_cast::<Node>();
+        if parent.is_none() {
+            return;
+        }
+        let mut parent = parent.unwrap();
+        parent.remove_child(self.node.clone().upcast::<Node>());
         self.node.queue_free();
-        self.create_grid();
-        self.add_pieces();
+        let node = load::<PackedScene>("res://board.tscn");
+        let vbox_node = node.instantiate().unwrap();
+        println!("node {:?}", node);
+        // get child
+        // let mut node: Gd<VBoxContainer> = node.cast::<VBoxContainer>();
+        let hbox_node = vbox_node.get_child(0);
+        println!("child {:?}", hbox_node);
+        let body = hbox_node.unwrap().get_child(0);
+        let body = body.unwrap().try_cast::<Board>();
+        if body.is_none() {
+            return;
+        }
+        let mut body = body.unwrap().clone();
+        let mut body = body.bind_mut();
+        body.fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0".to_string();
+
+        println!("body {:?}", body);
+        parent.add_child(vbox_node.upcast::<Node>());
+        // self.create_grid();
+        // self.add_pieces();
     }
     fn remove_all_children(node: &mut Node) {
         // iterate over all children and remove them

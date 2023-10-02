@@ -1,4 +1,4 @@
-use crate::interface::chessboard::piece::{fen_to_board, ChessPiece, Color};
+use crate::interface::chessboard::piece::{self, fen_to_board, ChessPiece, Color};
 
 use super::capture::in_check;
 
@@ -231,7 +231,7 @@ pub fn pawn_possible_squares(
     squares
 }
 
-pub fn is_enpassant_move(from: i32, to: i32, piece: ChessPiece, fen: &str) -> (bool, i32) {
+pub fn enpassant_moves(from: i32, piece: ChessPiece, fen: &str) -> Vec<i32> {
     let board = fen_to_board(fen);
     let color = piece.color();
     let mut direction = 1;
@@ -239,39 +239,45 @@ pub fn is_enpassant_move(from: i32, to: i32, piece: ChessPiece, fen: &str) -> (b
         direction = -1;
     }
 
-    let x = from / 8;
-    let y = from % 8;
+    // fen has empasant square
+    let enpassant_part = fen.split(" ").collect::<Vec<&str>>()[3];
+    if enpassant_part == "-" {
+        return vec![];
+    }
 
-    let piece_square = if color == Color::White {
-        to + 8
+    // piece in empasant square should not be of same color as the piece
+    let mut enpassant_sqr: Option<i32> = None;
+    if enpassant_part != "-" {
+        enpassant_sqr = Some(
+            (enpassant_part.chars().nth(0).unwrap() as i32 - 97) + // a-h
+        (8 * (7-(enpassant_part.chars().nth(1).unwrap() as i32 - 49))),
+        );
+    }
+
+    if enpassant_sqr == None {
+        return vec![];
+    }
+
+    let enpassant_sqr = enpassant_sqr.unwrap();
+
+    let move_sqr = if color == Color::White {
+        enpassant_sqr - 8
     } else {
-        to - 8
+        enpassant_sqr + 8
     };
 
-    // determine is the move thta happened is to empty diagonal square
-    let mut diagonal_squares: Vec<i32> = vec![];
-    let mut diagonal_squares_2: Vec<i32> = vec![];
-    let mut squares = vec![];
+    println!("enpassant_sqr {:?}", enpassant_sqr);
 
-    // diagonal squares to from
-    if y > 0 {
-        diagonal_squares.push((x + direction) * 8 + y - 1);
+    let emp_piece = board[enpassant_sqr as usize];
+    if emp_piece == ChessPiece::None || emp_piece.color() == color {
+        return vec![];
     }
-    if y < 7 {
-        diagonal_squares_2.push((x + direction) * 8 + y + 1);
-    }
-    for square in diagonal_squares {
-        squares.push(square);
-    }
+    println!("emp_piece {:?}", emp_piece);
 
-    for square in diagonal_squares_2 {
-        squares.push(square);
-    }
+    let squares: Vec<i32> = vec![move_sqr];
 
-
-    (squares.contains(&to), piece_square)
+    squares
 }
-
 pub fn king_possible_squares(
     board_pieces: &[ChessPiece; 64],
     piece: ChessPiece,
