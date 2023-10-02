@@ -2,7 +2,7 @@ use crate::interface::chessboard::piece::{ChessPiece, Color};
 
 use super::path::{knight_possible_squares, queen_attacking_squares};
 
-pub fn in_check(board: &[ChessPiece; 64], color: Color, en_passant: Option<i32>) -> bool {
+pub fn in_check(board: &[ChessPiece; 64], color: Color) -> bool {
     let king = if color == Color::White {
         ChessPiece::WKing
     } else {
@@ -53,11 +53,6 @@ pub fn in_check(board: &[ChessPiece; 64], color: Color, en_passant: Option<i32>)
     }
     attacking_squares.sort();
     attacking_squares.dedup();
-    // unique attacking squares
-    println!(
-        "{:?} Attacking squares: {:?}",
-        opponent_color, attacking_squares
-    );
     if attacking_squares.contains(&king_pos) {
         return true;
     }

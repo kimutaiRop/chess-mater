@@ -327,11 +327,11 @@ pub fn king_possible_squares(
         if new_x >= 0 && new_x < 8 && new_y >= 0 && new_y < 8 {
             let new_position = new_x * 8 + new_y;
             let target_piece = board_pieces[new_position as usize];
-
             if target_piece == ChessPiece::None || target_piece.color() != color {
-                let mut board = board_pieces.clone();
-                board[new_position as usize] = piece;
-                let is_check = in_check(&mut board, color, None);
+                let mut new_board = board_pieces.clone();
+                new_board[position as usize] = ChessPiece::None;
+                new_board[new_position as usize] = piece;
+                let is_check = in_check(&mut new_board, color);
                 if !is_check {
                     squares.push(new_position);
                 }
@@ -349,17 +349,17 @@ pub fn king_possible_squares(
                 if board_pieces[5] == ChessPiece::None && board_pieces[6] == ChessPiece::None {
                     // Check if the king is not in check
                     let mut board = board_pieces.clone();
-                    let is_check = in_check(&mut board, color, None);
+                    let is_check = in_check(&mut board, color);
                     if !is_check {
                         // Check if the king is not passing through a square that is attacked by an opponent's piece
                         let skipping_square = 5;
                         // see if king being at skipping_square is in check
                         let mut updated_board = board_pieces.clone();
                         updated_board[skipping_square as usize] = piece;
-                        let is_check = in_check(&mut updated_board, color, None);
+                        let is_check = in_check(&mut updated_board, color);
                         if !is_check {
                             let mut board = board_pieces.clone();
-                            let is_check = in_check(&mut board, color, None);
+                            let is_check = in_check(&mut board, color);
                             if !is_check {
                                 squares.push(6);
                             }
@@ -376,17 +376,17 @@ pub fn king_possible_squares(
                 {
                     // Check if the king is not in check
                     let mut board = board_pieces.clone();
-                    let is_check = in_check(&mut board, color, None);
+                    let is_check = in_check(&mut board, color);
                     if !is_check {
                         // Check if the king is not passing through a square that is attacked by an opponent's piece
                         let skipping_square = 3;
                         // see if king being at skipping_square is in check
                         let mut updated_board = board_pieces.clone();
                         updated_board[skipping_square as usize] = piece;
-                        let is_check = in_check(&mut updated_board, color, None);
+                        let is_check = in_check(&mut updated_board, color);
                         if !is_check {
                             let mut board = board_pieces.clone();
-                            let is_check = in_check(&mut board, color, None);
+                            let is_check = in_check(&mut board, color);
                             if !is_check {
                                 squares.push(2);
                             }
@@ -404,7 +404,7 @@ pub fn king_possible_squares(
                 if board_pieces[61] == ChessPiece::None && board_pieces[62] == ChessPiece::None {
                     // Check if the king is not in check
                     let mut board = board_pieces.clone();
-                    let is_check = in_check(&mut board, color, Some(61));
+                    let is_check = in_check(&mut board, color);
                     if !is_check {
                         // Check if the king is not passing through a square that is attacked by an opponent's piece
 
@@ -412,10 +412,10 @@ pub fn king_possible_squares(
                         // see if king being at skipping_square is in check
                         let mut updated_board = board_pieces.clone();
                         updated_board[skipping_square as usize] = piece;
-                        let is_check = in_check(&mut updated_board, color, Some(61));
+                        let is_check = in_check(&mut updated_board, color);
                         if !is_check {
                             let mut board = board_pieces.clone();
-                            let is_check = in_check(&mut board, color, Some(61));
+                            let is_check = in_check(&mut board, color);
                             if !is_check {
                                 squares.push(62);
                             }
@@ -432,17 +432,17 @@ pub fn king_possible_squares(
                 {
                     // Check if the king is not in check
                     let mut board = board_pieces.clone();
-                    let is_check = in_check(&mut board, color, Some(59));
+                    let is_check = in_check(&mut board, color);
                     if !is_check {
                         // Check if the king is not passing through a square that is attacked by an opponent's piece
                         let skipping_square = 59;
                         // see if king being at skipping_square is in check
                         let mut updated_board = board_pieces.clone();
                         updated_board[skipping_square as usize] = piece;
-                        let is_check = in_check(&mut updated_board, color, Some(59));
+                        let is_check = in_check(&mut updated_board, color);
                         if !is_check {
                             let mut board = board_pieces.clone();
-                            let is_check = in_check(&mut board, color, Some(59));
+                            let is_check = in_check(&mut board, color);
                             if !is_check {
                                 squares.push(58);
                             }

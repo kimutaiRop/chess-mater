@@ -46,7 +46,7 @@ fn can_en_passant(move_: &Move) -> bool {
             board_pieces_clone[move_.to as usize] = piece;
             board_pieces_clone[move_.from as usize] = ChessPiece::None;
             board_pieces_clone[(move_.to - 8) as usize] = ChessPiece::None;
-            return !in_check(&board_pieces_clone, piece.color(), None);
+            return !in_check(&board_pieces_clone, piece.color());
         }
     } else if piece == ChessPiece::WPawn {
         if row_diff == -1 && (col_diff == 1 || col_diff == -1) {
@@ -54,7 +54,7 @@ fn can_en_passant(move_: &Move) -> bool {
             board_pieces_clone[move_.to as usize] = piece;
             board_pieces_clone[move_.from as usize] = ChessPiece::None;
             board_pieces_clone[(move_.to + 8) as usize] = ChessPiece::None;
-            return !in_check(&board_pieces_clone, piece.color(), None);
+            return !in_check(&board_pieces_clone, piece.color());
         }
     }
 
@@ -86,7 +86,7 @@ fn do_en_passant(move_: &Move) -> (String, bool) {
         board_pieces[enpassant_sqr as usize] = ChessPiece::None;
         let fen = board_to_fen(&board_pieces);
         let fen = fen.replace(enpassant_part, "-");
-        let check = in_check(&board_pieces, piece.color(), None);
+        let check = in_check(&board_pieces, piece.color());
         if check {
             return (move_.fen.clone(), false);
         }
@@ -104,7 +104,7 @@ fn do_en_passant(move_: &Move) -> (String, bool) {
         let fen = format!("{} {}", fen, rules_part);
         let fen = fen.replace(enpassant_part, "-");
 
-        let check = in_check(&board_pieces, piece.color(), None);
+        let check = in_check(&board_pieces, piece.color());
         if check {
             return (move_.fen.clone(), false);
         }
@@ -157,7 +157,7 @@ fn pawn_move(move_: &Move) -> (String, bool) {
         let mut fen = board_to_fen(&board_pieces);
         // replace enpassant part with emp_string
         fen = format!("{} {}", fen, rules_part.join(" "));
-        let check = in_check(&board_pieces, piece.color(), None);
+        let check = in_check(&board_pieces, piece.color());
         if check {
             return (move_.fen.clone(), false);
         }
@@ -175,7 +175,7 @@ fn bishop_move(move_: &Move) -> (String, bool) {
     let possible_moves = bishop_possible_squares(&board_pieces, piece, move_.from);
     if possible_moves.contains(&move_.to) {
         board_pieces[move_.to as usize] = piece;
-        let check = in_check(&board_pieces, piece.color(), None);
+        let check = in_check(&board_pieces, piece.color());
         if check {
             return (move_.fen.clone(), false);
         }
@@ -206,7 +206,7 @@ fn knight_move(move_: &Move) -> (String, bool) {
         // println!("fen: {:?}", fen);
         // replace enpassant part with '-'
         let fen = fen.replace(enpassant_part, "-");
-        let check = in_check(&board_pieces, piece.color(), None);
+        let check = in_check(&board_pieces, piece.color());
         if check {
             return (move_.fen.clone(), false);
         }
@@ -231,7 +231,7 @@ fn rook_move(move_: &Move) -> (String, bool) {
         let fen = format!("{} {}", fen, rules_part);
         // replace enpassant part with '-'
         let fen = fen.replace(enpassant_part, "-");
-        let check = in_check(&board_pieces, piece.color(), None);
+        let check = in_check(&board_pieces, piece.color());
         if check {
             return (move_.fen.clone(), false);
         }
@@ -339,7 +339,7 @@ fn castle_move(move_: &Move) -> (String, bool) {
     }
 
     // cannot castle out of check
-    let is_cheked = in_check(&board_pieces, piece.color(), None);
+    let is_cheked = in_check(&board_pieces, piece.color());
     if is_cheked {
         return (move_.fen.clone(), false);
     }
@@ -349,7 +349,7 @@ fn castle_move(move_: &Move) -> (String, bool) {
     board_pieces[rook_from as usize] = ChessPiece::None;
     board_pieces[move_.to as usize] = piece;
     board_pieces[rook_to as usize] = rook;
-    let is_cheked = in_check(&board_pieces, piece.color(), None);
+    let is_cheked = in_check(&board_pieces, piece.color());
     if is_cheked {
         return (move_.fen.clone(), false);
     }
@@ -404,7 +404,7 @@ fn king_move(move_: &Move) -> (String, bool) {
         board_pieces[move_.to as usize] = piece;
         board_pieces[move_.from as usize] = ChessPiece::None;
         let original_rights = move_.fen.split(" ").collect::<Vec<&str>>()[2];
-        let is_check = in_check(&board_pieces, piece.color(), None);
+        let is_check = in_check(&board_pieces, piece.color());
         if is_check {
             return (move_.fen.clone(), false);
         }
