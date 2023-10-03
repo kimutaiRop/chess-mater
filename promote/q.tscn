@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://krhepn68gay7"]
+
+[node name="PromoteButton" type="PromoteButton"]
+offset_right = 8.0
+offset_bottom = 8.0
+text = "Queen"

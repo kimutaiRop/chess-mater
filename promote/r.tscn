@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c7fwg2kca8qmg"]
+
+[node name="PromoteButton" type="PromoteButton"]
+offset_right = 8.0
+offset_bottom = 8.0
+text = "Rook"
