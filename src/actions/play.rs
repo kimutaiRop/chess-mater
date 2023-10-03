@@ -17,50 +17,6 @@ pub struct Move {
     pub fen: String,
 }
 
-// Function to check if en passant can be done
-fn can_en_passant(move_: &Move) -> bool {
-    let board_pieces: [ChessPiece; 64] = fen_to_board(&move_.fen.clone());
-    let enpassant_part = move_.fen.split(" ").collect::<Vec<&str>>()[3];
-
-    if enpassant_part == "-" {
-        return false;
-    }
-
-    // no enemy piece in enpassant square
-    let enpassant_sqr = (enpassant_part.chars().nth(0).unwrap() as i32 - 97) + // a-h
-        (8 * (7-(enpassant_part.chars().nth(1).unwrap() as i32 - 49))); // 1-8
-
-    // Check if there is a pawn in the 'from' square
-    let piece = board_pieces[move_.from as usize];
-
-    let from_row = move_.from / 8;
-    let to_row = move_.to / 8;
-    let from_col = move_.from % 8;
-    let to_col = move_.to % 8;
-    let row_diff = to_row as i32 - from_row as i32;
-    let col_diff = to_col as i32 - from_col as i32;
-
-    if piece == ChessPiece::BPawn {
-        if row_diff == 1 && (col_diff == 1 || col_diff == -1) {
-            let mut board_pieces_clone = board_pieces.clone();
-            board_pieces_clone[move_.to as usize] = piece;
-            board_pieces_clone[move_.from as usize] = ChessPiece::None;
-            board_pieces_clone[(move_.to - 8) as usize] = ChessPiece::None;
-            return !in_check(&board_pieces_clone, piece.color());
-        }
-    } else if piece == ChessPiece::WPawn {
-        if row_diff == -1 && (col_diff == 1 || col_diff == -1) {
-            let mut board_pieces_clone = board_pieces.clone();
-            board_pieces_clone[move_.to as usize] = piece;
-            board_pieces_clone[move_.from as usize] = ChessPiece::None;
-            board_pieces_clone[(move_.to + 8) as usize] = ChessPiece::None;
-            return !in_check(&board_pieces_clone, piece.color());
-        }
-    }
-
-    false
-}
-
 // Function to perform en passant
 fn do_en_passant(move_: &Move) -> (String, bool) {
     let mut board_pieces: [ChessPiece; 64] = fen_to_board(&move_.fen.clone());
@@ -132,7 +88,8 @@ fn pawn_move(move_: &Move) -> (String, bool) {
     if !posible_moves.contains(&move_.to) {
         return (move_.fen.clone(), false);
     }
-    if can_en_passant(move_) && board_pieces[move_.to as usize] == ChessPiece::None {
+    let emnp_squares = super::path::enpassant_moves(move_.from, piece, &move_.fen);
+    if emnp_squares.contains(&move_.to) {
         return do_en_passant(move_);
     }
 
