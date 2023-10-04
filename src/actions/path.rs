@@ -1,6 +1,6 @@
 use crate::interface::chessboard::piece::{board_to_fen, fen_to_board, ChessPiece, Color};
 
-use super::capture::in_check;
+use super::{capture::in_check, play::GameState};
 
 pub fn bishop_possible_squares(
     board_pieces: &[ChessPiece; 64],
@@ -498,4 +498,44 @@ pub fn king_possible_squares(
         }
     }
     squares
+}
+
+fn is_piece_present(pieces: Vec<&ChessPiece>, target_piece: &ChessPiece) -> bool {
+    pieces.iter().any(|piece| piece == &target_piece)
+}
+
+pub fn check_known_draw(
+    black_rem_pieces: Vec<&ChessPiece>,
+    white_rem_pieces: Vec<&ChessPiece>,
+) -> bool {
+    // Check for bishops draw
+    if black_rem_pieces.len() == 2 && white_rem_pieces.len() == 2 {
+        let black_bishop_draw = is_piece_present(black_rem_pieces.clone(), &ChessPiece::BBishop);
+        let white_bishop_draw = is_piece_present(white_rem_pieces.clone(), &ChessPiece::WBishop);
+
+        if black_bishop_draw && white_bishop_draw {
+            return true;
+        }
+    }
+
+    // Check for knights draw
+    if black_rem_pieces.len() == 2 && white_rem_pieces.len() == 2 {
+        let black_knight_draw = is_piece_present(black_rem_pieces.clone(), &ChessPiece::BKnight);
+        let white_knight_draw = is_piece_present(white_rem_pieces.clone(), &ChessPiece::WKnight);
+
+        if black_knight_draw && white_knight_draw {
+            return true;
+        }
+    }
+
+    // Check for insufficient material draw
+    if (black_rem_pieces.len() == 1 && white_rem_pieces.len() == 1)
+        || (black_rem_pieces.is_empty() && white_rem_pieces.len() == 1)
+        || (white_rem_pieces.is_empty() && black_rem_pieces.len() == 1)
+    {
+        return true;
+    }
+
+    // Return false if none of the draw conditions are met
+    false
 }

@@ -4,7 +4,7 @@ use super::{
     capture::in_check,
     path::{
         bishop_possible_squares, enpassant_moves, king_possible_squares, knight_possible_squares,
-        rook_possible_squares,
+        rook_possible_squares, check_known_draw,
     },
 };
 
@@ -22,6 +22,7 @@ pub enum GameState {
     Checkmate,
     Stalemate,
     Normal,
+    Draw,
 }
 
 // Function to perform en passant
@@ -492,7 +493,28 @@ pub fn make_move(move_: &Move) -> (String, bool, bool, GameState) {
         king,
         opp_king_pos,
         rules_part.split(" ").collect::<Vec<&str>>()[2],
-    ); // is checkmate
+    );
+
+    // get black pieces remaining
+    let black_rem_pieces = board
+        .iter()
+        .filter(|&x| *x != ChessPiece::None && x.color() == Color::Black)
+        .collect::<Vec<&ChessPiece>>();
+
+    // get white pieces remaining
+    let white_rem_pieces: Vec<&ChessPiece> = board
+        .iter()
+        .filter(|&x| *x != ChessPiece::None && x.color() == Color::White)
+        .collect::<Vec<&ChessPiece>>();
+
+    // if kings are the only pieces left, it is a draw
+    if black_rem_pieces.len() == 1 && white_rem_pieces.len() == 1 {
+        return (fen, true, false, GameState::Draw);
+    }
+
+    let is_draw = check_known_draw(black_rem_pieces, white_rem_pieces);
+    println!("is draw: {}", is_draw);
+
     let state = if king_pos_moved.len() == 0 && is_check {
         GameState::Checkmate
     } else if king_pos_moved.len() == 0 && !is_check {

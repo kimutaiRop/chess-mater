@@ -37,6 +37,7 @@ pub enum GameStateVariant {
     Checkmate,
     Stalemate,
     Normal,
+    Draw,
 }
 
 impl GameStateVariant {
@@ -45,6 +46,7 @@ impl GameStateVariant {
             GameState::Checkmate => GameStateVariant::Checkmate,
             GameState::Stalemate => GameStateVariant::Stalemate,
             GameState::Normal => GameStateVariant::Normal,
+            GameState::Draw => GameStateVariant::Draw,
         }
     }
 }
