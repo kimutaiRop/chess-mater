@@ -41,7 +41,8 @@ fn do_en_passant(move_: &Move) -> (String, bool) {
         board_pieces[move_.from as usize] = ChessPiece::None;
         board_pieces[enpassant_sqr as usize] = ChessPiece::None;
         let fen = board_to_fen(&board_pieces);
-        let fen = fen.replace(enpassant_part, "-");
+        let rules_part = rules_part.replace(enpassant_part, "-");
+        let fen = format!("{} {}", fen, rules_part);
         let check = in_check(&board_pieces, piece.color());
         if check {
             return (move_.fen.clone(), false);
@@ -57,8 +58,8 @@ fn do_en_passant(move_: &Move) -> (String, bool) {
         board_pieces[enpassant_sqr as usize] = ChessPiece::None;
 
         let fen = board_to_fen(&board_pieces);
+        let rules_part = rules_part.replace(enpassant_part, "-");
         let fen = format!("{} {}", fen, rules_part);
-        let fen = fen.replace(enpassant_part, "-");
 
         let check = in_check(&board_pieces, piece.color());
         if check {
@@ -74,17 +75,9 @@ fn pawn_move(move_: &Move) -> (String, bool) {
     let mut rules_part = move_.fen.split(" ").collect::<Vec<&str>>()[1..].to_vec();
 
     let piece = board_pieces[move_.from as usize];
-    let enpassant_part = move_.fen.split(" ").collect::<Vec<&str>>()[3]; // e6 for example
-    let mut enpassant_sqr: Option<i32> = None;
-    if enpassant_part != "-" {
-        enpassant_sqr = Some(
-            (enpassant_part.chars().nth(0).unwrap() as i32 - 97) + // a-h
-        (8 * (7-(enpassant_part.chars().nth(1).unwrap() as i32 - 49))),
-        );
-    }
-    let posible_moves =
-        super::path::pawn_possible_squares(&board_pieces, piece, move_.from, enpassant_sqr);
 
+    let posible_moves =
+        super::path::pawn_possible_squares(&board_pieces, piece, move_.from, &move_.fen);
     if !posible_moves.contains(&move_.to) {
         return (move_.fen.clone(), false);
     }
@@ -110,8 +103,47 @@ fn pawn_move(move_: &Move) -> (String, bool) {
         rules_part[2] = &enpassant_string;
         board_pieces[move_.to as usize] = piece;
         board_pieces[move_.from as usize] = ChessPiece::None;
+        // if promotion no ""
+        if move_.promote != "" {
+            // get correct piece and color
+            let promote = match move_.promote.as_str() {
+                "q" => {
+                    if piece.color() == Color::White {
+                        ChessPiece::WQueen
+                    } else {
+                        ChessPiece::BQueen
+                    }
+                }
+                "r" => {
+                    if piece.color() == Color::White {
+                        ChessPiece::WRook
+                    } else {
+                        ChessPiece::BRook
+                    }
+                }
+                "b" => {
+                    if piece.color() == Color::White {
+                        ChessPiece::WBishop
+                    } else {
+                        ChessPiece::BBishop
+                    }
+                }
+                "n" => {
+                    if piece.color() == Color::White {
+                        ChessPiece::WKnight
+                    } else {
+                        ChessPiece::BKnight
+                    }
+                }
+                _ => ChessPiece::None,
+            };
+            // if piece is not retuern false
+            if promote == ChessPiece::None {
+                return (move_.fen.clone(), false);
+            }
+            board_pieces[move_.to as usize] = promote;
+        }
         let mut fen = board_to_fen(&board_pieces);
-        // replace enpassant part with emp_string
         fen = format!("{} {}", fen, rules_part.join(" "));
         let check = in_check(&board_pieces, piece.color());
         if check {
@@ -125,7 +157,7 @@ fn pawn_move(move_: &Move) -> (String, bool) {
 
 fn bishop_move(move_: &Move) -> (String, bool) {
     let mut board_pieces: [ChessPiece; 64] = fen_to_board(&move_.fen.clone());
-    let rules_part = move_.fen.split(" ").collect::<Vec<&str>>()[1..].join(" ");
+    let mut rules_part = move_.fen.split(" ").collect::<Vec<&str>>()[1..].join(" ");
     let enpassant_part = move_.fen.split(" ").collect::<Vec<&str>>()[3]; // e6 for example
     let piece = board_pieces[move_.from as usize];
     let possible_moves = bishop_possible_squares(&board_pieces, piece, move_.from);
@@ -137,8 +169,8 @@ fn bishop_move(move_: &Move) -> (String, bool) {
         }
         board_pieces[move_.from as usize] = ChessPiece::None;
         let mut fen = board_to_fen(&board_pieces);
+        rules_part = rules_part.replace(enpassant_part, "-");
         fen = format!("{} {}", fen, rules_part);
-        fen = fen.replace(enpassant_part, "-");
 
         return (fen.clone(), true);
     }
@@ -146,7 +178,6 @@ fn bishop_move(move_: &Move) -> (String, bool) {
 }
 
 fn knight_move(move_: &Move) -> (String, bool) {
-    // println!("knight {:}", &move_.fen);
     let mut board_pieces: [ChessPiece; 64] = fen_to_board(&move_.fen.clone());
     let rules_part = move_.fen.split(" ").collect::<Vec<&str>>()[1..].join(" ");
     let enpassant_part = move_.fen.split(" ").collect::<Vec<&str>>()[3]; // e6 for example
@@ -158,10 +189,9 @@ fn knight_move(move_: &Move) -> (String, bool) {
         board_pieces[move_.to as usize] = piece;
         board_pieces[move_.from as usize] = ChessPiece::None;
         let fen = board_to_fen(&board_pieces);
+
+        let rules_part = rules_part.replace(enpassant_part, "-");
         let fen = format!("{} {}", fen, rules_part);
-        // println!("fen: {:?}", fen);
-        // replace enpassant part with '-'
-        let fen = fen.replace(enpassant_part, "-");
         let check = in_check(&board_pieces, piece.color());
         if check {
             return (move_.fen.clone(), false);
@@ -183,10 +213,10 @@ fn rook_move(move_: &Move) -> (String, bool) {
     if possible_moves.contains(&move_.to) {
         board_pieces[move_.to as usize] = piece;
         board_pieces[move_.from as usize] = ChessPiece::None;
-        let fen = board_to_fen(&board_pieces);
-        let fen = format!("{} {}", fen, rules_part);
         // replace enpassant part with '-'
-        let fen = fen.replace(enpassant_part, "-");
+        let rules_part = rules_part.replace(enpassant_part, "-");
+        let fen = board_to_fen(&board_pieces);
+
         let check = in_check(&board_pieces, piece.color());
         if check {
             return (move_.fen.clone(), false);
@@ -214,7 +244,8 @@ fn rook_move(move_: &Move) -> (String, bool) {
         if rights == "" {
             rights = String::from("-");
         }
-        let fen = fen.replace(castling_rights, &rights);
+        let rules_part = rules_part.replace(castling_rights, &rights);
+        let fen = format!("{} {}", fen, rules_part);
 
         return (fen.clone(), true);
     }
@@ -223,12 +254,10 @@ fn rook_move(move_: &Move) -> (String, bool) {
 
 fn queen_move(move_: &Move) -> (String, bool) {
     let as_bishop = bishop_move(move_);
-    // println!("as_bishop: {:?}", as_bishop);
     if as_bishop.1 {
         return as_bishop;
     }
     let as_rook = rook_move(move_);
-    // println!("as_rook: {:?}", as_rook);
     if as_rook.1 {
         return as_rook;
     }
@@ -236,11 +265,7 @@ fn queen_move(move_: &Move) -> (String, bool) {
 }
 
 fn castle_move(move_: &Move) -> (String, bool) {
-    // println!("castle");
     let mut board_pieces: [ChessPiece; 64] = fen_to_board(&move_.fen.clone());
-
-    // Check if king is in the 'from' square
-    let piece = board_pieces[move_.from as usize];
 
     // Determine the direction of castling
     let is_kingside_castle = move_.to > move_.from;
@@ -252,14 +277,13 @@ fn castle_move(move_: &Move) -> (String, bool) {
         (move_.to - 2, move_.to + 1) // Adjust for queenside castling
     };
 
-    // println!("rook_position: {:?}", rook_from);
-
     // Check if rook is in the correct position
     let rook = board_pieces[rook_from as usize];
-
+    let rules_part = move_.fen.split(" ").collect::<Vec<&str>>()[1..].join(" ");
+    let enpassant_part = move_.fen.split(" ").collect::<Vec<&str>>()[3]; // e6 for example
+    let piece = board_pieces[move_.from as usize];
     let original_rights = move_.fen.split(" ").collect::<Vec<&str>>()[2];
 
-    // Determine the appropriate castling rights
     let mut can_castle = match piece.color() {
         Color::White => original_rights.contains("K") || original_rights.contains("Q"),
         Color::Black => original_rights.contains("k") || original_rights.contains("q"),
@@ -289,7 +313,6 @@ fn castle_move(move_: &Move) -> (String, bool) {
     // Check if all squares between the king and rook are empty
     for i in (rook_from + 1..move_.from).step_by(if is_kingside_castle { 1 } else { usize::MAX }) {
         if board_pieces[i as usize] != ChessPiece::None {
-            // println!("squares between king and rook are not empty");
             return (move_.fen.clone(), false);
         }
     }
@@ -318,16 +341,13 @@ fn castle_move(move_: &Move) -> (String, bool) {
         rights = rights.replace("k", "");
         rights = rights.replace("q", "");
     }
-    // if rights is empty, replace with '-'
     if rights == "" {
         rights = String::from("-");
     }
-    fen = format!(
-        "{} {}",
-        fen,
-        move_.fen.split(" ").collect::<Vec<&str>>()[1..].join(" ")
-    );
-    fen = fen.replace(original_rights, &rights);
+
+    let rules_part = rules_part.replace(enpassant_part, "-");
+    let rules_part = rules_part.replace(original_rights, &rights);
+    fen = format!("{} {}", fen, rules_part);
 
     (fen.clone(), true)
 }
@@ -373,15 +393,19 @@ fn king_move(move_: &Move) -> (String, bool) {
             rights = rights.replace("q", "");
         }
         let fen = board_to_fen(&board_pieces);
+        let rules_part = rules_part.replace(enpassant_part, "-");
+        if rights == "" {
+            rights = String::from("-");
+        }
+        let rules_part = rules_part.replace(original_rights, &rights);
+
         let fen = format!("{} {}", fen, rules_part);
-        let fen = fen.replace(enpassant_part, "-");
-        let fen = fen.replace(original_rights, &rights);
         return (fen.clone(), true);
     }
     return (move_.fen.clone(), false);
 }
 
-pub fn make_move(move_: &Move) -> (String, bool) {
+pub fn make_move(move_: &Move) -> (String, bool, bool, bool) {
     let board_pieces: [ChessPiece; 64] = fen_to_board(&move_.fen.clone());
     let turn = move_.fen.split(" ").collect::<Vec<&str>>()[1];
     let color = match turn {
@@ -390,11 +414,12 @@ pub fn make_move(move_: &Move) -> (String, bool) {
         _ => Color::White,
     };
     if color != move_.piece.color() {
-        return (move_.fen.clone(), false);
+        return (move_.fen.clone(), false, false, false);
     }
     if move_.from == move_.to {
-        return (move_.fen.clone(), false);
+        return (move_.fen.clone(), false, false, false);
     }
+
     let piece = board_pieces[move_.from as usize];
     // choose correct move function
     let move_fn = match piece {
@@ -404,12 +429,11 @@ pub fn make_move(move_: &Move) -> (String, bool) {
         ChessPiece::BRook | ChessPiece::WRook => rook_move,
         ChessPiece::BQueen | ChessPiece::WQueen => queen_move,
         ChessPiece::BKing | ChessPiece::WKing => king_move,
-        ChessPiece::None => return (move_.fen.clone(), false),
+        ChessPiece::None => return (move_.fen.clone(), false, false, false),
     };
-
     let (mut fen, moved) = move_fn(move_);
     if !moved {
-        return (fen, false);
+        return (fen, false, false, false);
     }
     let fen_part = fen.split(" ").collect::<Vec<&str>>()[0];
     let mut rules_part = fen.split(" ").collect::<Vec<&str>>()[1..].to_vec();
@@ -432,5 +456,35 @@ pub fn make_move(move_: &Move) -> (String, bool) {
     let rules_part = rules_part.join(" ");
     fen = format!("{} {}", fen_part, rules_part);
 
-    (fen, moved)
+    // see if oponemt is checked
+    let opp_color = match color {
+        Color::White => Color::Black,
+        Color::Black => Color::White,
+    };
+
+    let is_check = in_check(&fen_to_board(&fen), opp_color);
+    if !is_check {
+        return (fen, true, false, false);
+    }
+    let mut opp_king_pos = 0;
+    for (i, piece) in board_pieces.iter().enumerate() {
+        if *piece == ChessPiece::WKing {
+            opp_king_pos = i;
+            break;
+        }
+        if *piece == ChessPiece::BKing {
+            opp_king_pos = i;
+            break;
+        }
+    }
+    let opp_king_pos = opp_king_pos as i32;
+    let board = fen_to_board(&fen);
+    let king = board[opp_king_pos as usize];
+    let king_pos_moved = king_possible_squares(
+        &fen_to_board(&fen),
+        king,
+        opp_king_pos,
+        rules_part.split(" ").collect::<Vec<&str>>()[2],
+    ); // is checkmate
+    (fen, moved, is_check, king_pos_moved.len() == 0)
 }

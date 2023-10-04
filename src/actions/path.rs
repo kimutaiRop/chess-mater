@@ -1,4 +1,4 @@
-use crate::interface::chessboard::piece::{fen_to_board, ChessPiece, Color};
+use crate::interface::chessboard::piece::{board_to_fen, fen_to_board, ChessPiece, Color};
 
 use super::capture::in_check;
 
@@ -160,7 +160,7 @@ pub fn pawn_possible_squares(
     board: &[ChessPiece; 64],
     piece: ChessPiece,
     position: i32,
-    en_passant: Option<i32>,
+    fen: &str,
 ) -> Vec<i32> {
     let mut squares: Vec<i32> = vec![];
     let color = piece.color();
@@ -190,18 +190,10 @@ pub fn pawn_possible_squares(
         }
     }
 
-    // Check for en passant captures
-    if let Some(en_passant_square) = en_passant {
-        let en_passant_x = en_passant_square / 8;
-        let en_passant_y = en_passant_square % 8;
-
-        if en_passant_x == x && (en_passant_y == y - 1 || en_passant_y == y + 1) {
-            squares.push(en_passant_square + 8 * direction);
-        }
-    }
-
+    let en_passant_sqr = enpassant_moves(position, piece, fen);
     let capture_squares = pawn_capture_squares(board, piece, position);
     squares.extend(capture_squares);
+    squares.extend(en_passant_sqr);
     squares
 }
 
@@ -232,7 +224,7 @@ pub fn pawn_capture_squares(
     for square in diagonal_squares {
         if square >= 0 && square < 64 {
             let target_piece = board[square as usize];
-            if target_piece == ChessPiece::None || target_piece.color() != color {
+            if target_piece != ChessPiece::None && target_piece.color() != color {
                 squares.push(square);
             }
         }
@@ -241,7 +233,7 @@ pub fn pawn_capture_squares(
     for square in diagonal_squares_2 {
         if square >= 0 && square < 64 {
             let target_piece = board[square as usize];
-            if target_piece == ChessPiece::None || target_piece.color() != color {
+            if target_piece != ChessPiece::None && target_piece.color() != color {
                 squares.push(square);
             }
         }
@@ -296,14 +288,9 @@ pub fn enpassant_moves(from: i32, piece: ChessPiece, fen: &str) -> Vec<i32> {
 
     squares
 }
-pub fn king_possible_squares(
-    board_pieces: &[ChessPiece; 64],
-    piece: ChessPiece,
-    position: i32,
-    castle_rules: &str, // "KQkq"
-) -> Vec<i32> {
+
+pub fn king_adjuscent_squares(position: i32) -> Vec<i32> {
     let mut squares: Vec<i32> = vec![];
-    let color = piece.color();
 
     // Define all possible king moves
     let moves: [(i32, i32); 8] = [
@@ -326,6 +313,64 @@ pub fn king_possible_squares(
         // Check if the new position is within the bounds of the board
         if new_x >= 0 && new_x < 8 && new_y >= 0 && new_y < 8 {
             let new_position = new_x * 8 + new_y;
+            squares.push(new_position);
+        }
+    }
+    squares
+}
+
+pub fn king_possible_squares(
+    board_pieces: &[ChessPiece; 64],
+    piece: ChessPiece,
+    position: i32,
+    castle_rules: &str, // "KQkq"
+) -> Vec<i32> {
+    let mut squares: Vec<i32> = vec![];
+    let color = piece.color();
+
+    let opp_king = if color == Color::White {
+        ChessPiece::BKing
+    } else {
+        ChessPiece::WKing
+    };
+
+    let mut opp_king_pos = 0;
+    for (i, piece) in board_pieces.iter().enumerate() {
+        if *piece == opp_king {
+            opp_king_pos = i;
+            break;
+        }
+    }
+
+    // opp king attacking squares
+    let opp_king_attacking_squares = king_adjuscent_squares(opp_king_pos as i32);
+
+    // Define all possible king moves
+    let moves: [(i32, i32); 8] = [
+        (1, 1),
+        (1, -1),
+        (-1, 1),
+        (-1, -1),
+        (1, 0),
+        (-1, 0),
+        (0, 1),
+        (0, -1),
+    ];
+
+    for &(dx, dy) in &moves {
+        let x = position / 8;
+        let y = position % 8;
+        let new_x = x + dx;
+        let new_y = y + dy;
+
+        if new_x >= 0 && new_x < 8 && new_y >= 0 && new_y < 8 {
+            let new_position = new_x * 8 + new_y;
+
+            // opp king should not be able to attack the king's new position
+            if opp_king_attacking_squares.contains(&new_position) {
+                continue;
+            }
+
             let target_piece = board_pieces[new_position as usize];
             if target_piece == ChessPiece::None || target_piece.color() != color {
                 let mut new_board = board_pieces.clone();

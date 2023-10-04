@@ -15,7 +15,6 @@ pub struct PromoteMove {
 #[derive(Debug, GodotClass)]
 #[class(base=VBoxContainer)]
 pub struct PromoteVbox {
-    modal_overlay: Option<Gd<Node>>,
     node: Base<VBoxContainer>,
 }
 
@@ -102,10 +101,7 @@ impl PromotionOverlay {
 #[godot_api]
 impl VBoxContainerVirtual for PromoteVbox {
     fn init(node: Base<VBoxContainer>) -> Self {
-        Self {
-            node,
-            modal_overlay: None,
-        }
+        Self { node }
     }
     fn ready(&mut self) {
         self.add_buttons();

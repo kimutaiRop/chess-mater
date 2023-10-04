@@ -3,11 +3,10 @@
 [node name="Board" type="VBoxContainer"]
 offset_left = 57.0
 offset_top = 24.0
-offset_right = 1057.0
+offset_right = 647.0
 offset_bottom = 612.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="."]
-custom_minimum_size = Vector2(1000, 0)
 layout_mode = 2
 
 [node name="Board" type="Board" parent="HBoxContainer"]

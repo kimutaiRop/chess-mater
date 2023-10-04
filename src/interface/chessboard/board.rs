@@ -32,6 +32,14 @@ pub struct PlaceCenterDrag {
     _node: Base<CenterContainer>,
 }
 
+#[derive(Debug, godot::prelude::ToVariant, FromVariant)]
+pub struct PlayResult {
+    pub fen: String,
+    pub moved: bool,
+    pub check: bool,
+    pub checkmate: bool,
+}
+
 #[godot_api]
 impl ColorRectVirtual for Square {
     fn init(node: Base<ColorRect>) -> Self {
@@ -201,7 +209,10 @@ impl Square {
 
         // remove from node
         from_node.remove_child(from_centre_node_drag.clone().upcast::<Node>());
-
+        let to_centre_node_drag = to_node.get_child(1);
+        if to_centre_node_drag.is_some() {
+            to_node.remove_child(to_centre_node_drag.unwrap());
+        }
         to_node.add_child(from_centre_node_drag.clone().upcast::<Node>());
         return true;
     }
@@ -277,8 +288,6 @@ pub struct Board {
 #[godot_api]
 impl GridContainerVirtual for Board {
     fn init(node: Base<GridContainer>) -> Self {
-        println!("init board");
-        // create mutabale node
         let mut node: Base<GridContainer> = node;
         node.set_columns(8);
         node.add_theme_constant_override(StringName::from("hseparation"), 0);
@@ -308,22 +317,37 @@ impl Board {
         promote: GodotString,
         from: i32,
         to: i32,
-    ) -> GodotString {
+    ) -> Variant {
         let board_node = self.node.clone().upcast::<Node>();
         let from_node = board_node.get_child(from).unwrap();
         let from_node = from_node.clone().try_cast::<PlaceCenter>();
         if from_node.is_none() {
-            return fen;
+            return Variant::from(PlayResult {
+                fen: fen.to_string(),
+                moved: false,
+                check: false,
+                checkmate: false,
+            });
         }
         let mut from_node = from_node.unwrap();
         let from_centre_node_drag = from_node.get_child(1);
         if from_centre_node_drag.is_none() {
-            return fen;
+            return Variant::from(PlayResult {
+                fen: fen.to_string(),
+                moved: false,
+                check: false,
+                checkmate: false,
+            });
         }
 
         let piece = from_centre_node_drag.clone().unwrap().get_child(0);
         if piece.is_none() {
-            return fen;
+            return Variant::from(PlayResult {
+                fen: fen.to_string(),
+                moved: false,
+                check: false,
+                checkmate: false,
+            });
         }
         let piece = piece.clone().unwrap().try_cast::<Piece>().unwrap();
         let piece = piece.bind();
@@ -336,9 +360,14 @@ impl Board {
             promote: promote.to_string(),
         };
 
-        let allowed = make_move(&piece_move);
-        if !allowed.1 {
-            return fen;
+        let play = make_move(&piece_move); //fen, moved, check, checkmate
+        if !play.1 {
+            return Variant::from(PlayResult {
+                fen: fen.to_string(),
+                moved: false,
+                check: false,
+                checkmate: false,
+            });
         }
         let old_fen = fen.to_string();
 
@@ -354,30 +383,16 @@ impl Board {
                 let empassant_pawn = board_node.get_child(enp_pos).unwrap();
                 let empassant_pawn = empassant_pawn.try_cast::<PlaceCenter>();
                 if empassant_pawn.is_none() {
-                    return fen;
+                    return Variant::from(PlayResult {
+                        fen: fen.to_string(),
+                        moved: false,
+                        check: false,
+                        checkmate: false,
+                    });
                 }
                 let mut empassant_pawn = empassant_pawn.unwrap();
                 let drag_empassant_pawn = empassant_pawn.get_child(1);
                 empassant_pawn.remove_child(drag_empassant_pawn.unwrap());
-            }
-        }
-        if piece_move.piece == ChessPiece::BKing && move_diff.abs() == 2 {
-            let castle = Square::move_drag_element(
-                &board_node,
-                if move_diff > 0 { 0 } else { 7 },
-                if move_diff > 0 { 3 } else { 5 },
-            );
-            if !castle {
-                return fen;
-            }
-        } else if piece_move.piece == ChessPiece::WKing && move_diff.abs() == 2 {
-            let castle = Square::move_drag_element(
-                &board_node,
-                if move_diff > 0 { 56 } else { 63 },
-                if move_diff > 0 { 59 } else { 61 },
-            );
-            if !castle {
-                return fen;
             }
         }
 
@@ -386,15 +401,105 @@ impl Board {
         let to_node = board_node.get_child(to).unwrap();
         let to_node = to_node.try_cast::<PlaceCenter>();
         if to_node.is_none() {
-            return fen;
+            return Variant::from(PlayResult {
+                fen: fen.to_string(),
+                moved: false,
+                check: false,
+                checkmate: false,
+            });
         }
         let mut to_node = to_node.unwrap();
         let to_centre_node_drag = to_node.get_child(1);
         if to_centre_node_drag.is_some() {
             to_node.remove_child(to_centre_node_drag.unwrap());
         }
-        to_node.add_child(from_centre_node_drag.unwrap());
-        return GodotString::from(allowed.0);
+
+        // casting
+        if piece_move.piece == ChessPiece::BKing && move_diff.abs() == 2 {
+            let castle = Square::move_drag_element(
+                &board_node,
+                if move_diff > 0 { 0 } else { 7 },
+                if move_diff > 0 { 3 } else { 5 },
+            );
+            if !castle {
+                return Variant::from(PlayResult {
+                    fen: fen.to_string(),
+                    moved: false,
+                    check: false,
+                    checkmate: false,
+                });
+            }
+        } else if piece_move.piece == ChessPiece::WKing && move_diff.abs() == 2 {
+            let castle = Square::move_drag_element(
+                &board_node,
+                if move_diff > 0 { 56 } else { 63 },
+                if move_diff > 0 { 59 } else { 61 },
+            );
+            if !castle {
+                return Variant::from(PlayResult {
+                    fen: fen.to_string(),
+                    moved: false,
+                    check: false,
+                    checkmate: false,
+                });
+            }
+        }
+
+        // if promotion is not ""
+        if promote.to_string().as_str() != "" {
+            let array_fen = fen_to_board(&fen.to_string());
+            let pawn = array_fen[to as usize];
+            let piece = match promote.to_string().as_str() {
+                "q" => {
+                    if pawn.color() == crate::interface::chessboard::piece::Color::White {
+                        ChessPiece::WQueen
+                    } else {
+                        ChessPiece::BQueen
+                    }
+                }
+                "r" => {
+                    if pawn.color() == crate::interface::chessboard::piece::Color::White {
+                        ChessPiece::WRook
+                    } else {
+                        ChessPiece::BRook
+                    }
+                }
+                "b" => {
+                    if pawn.color() == crate::interface::chessboard::piece::Color::White {
+                        ChessPiece::WBishop
+                    } else {
+                        ChessPiece::BBishop
+                    }
+                }
+                "n" => {
+                    if pawn.color() == crate::interface::chessboard::piece::Color::White {
+                        ChessPiece::WKnight
+                    } else {
+                        ChessPiece::BKnight
+                    }
+                }
+                _ => ChessPiece::None,
+            };
+            let piece = Board::create_piece(piece);
+            let piece = piece.try_to::<Gd<PlaceCenterDrag>>();
+            if piece.is_err() {
+                return Variant::from(PlayResult {
+                    fen: fen.to_string(),
+                    moved: false,
+                    check: false,
+                    checkmate: false,
+                });
+            }
+            to_node.add_child(piece.unwrap().upcast::<Node>());
+        } else {
+            to_node.add_child(from_centre_node_drag.clone().unwrap());
+        }
+        return Variant::from(PlayResult {
+            fen: play.0,
+            moved: play.1,
+            check: play.2,
+            checkmate: play.3,
+        });
     }
 
     fn create_grid(&mut self) {
@@ -424,27 +529,37 @@ impl Board {
 
         for i in 0..8 {
             for j in 0..8 {
-                let piece = array_fen[i * 8 + j];
+                let piece: ChessPiece = array_fen[i * 8 + j];
                 let mut squre_centre_node = self.node.get_child((i * 8 + j) as i32).unwrap();
-                let centre = load::<PackedScene>("res://place_center_drag.tscn");
-                let centre = centre.instantiate().unwrap();
-                let mut centre = centre.cast::<PlaceCenterDrag>();
-                if piece != ChessPiece::None {
-                    let path = piece_to_fen(&piece);
-                    if path.len() > 0 {
-                        let piece_node = load::<PackedScene>(format!("res://{}.tscn", path));
-                        let piece_node = piece_node.instantiate().unwrap();
-                        let mut piece_node = piece_node.cast::<Piece>();
-                        let mut piece_mut = piece_node.clone();
-                        piece_node.set_centered(true);
-                        piece_node.set_scale(Vector2::new(0.55, 0.55));
-                        let mut piece_mut = piece_mut.bind_mut();
-                        piece_mut.piece = string_to_piece(&path);
-                        centre.add_child(piece_node.upcast::<Node>());
-                    }
+                let centre = Board::create_piece(piece);
+                let centre = centre.try_to::<Gd<PlaceCenterDrag>>();
+                if centre.is_err() {
+                    continue;
                 }
+                let centre = centre.unwrap();
                 squre_centre_node.add_child(centre.clone().upcast::<Node>());
             }
         }
+    }
+
+    pub fn create_piece(piece: ChessPiece) -> Variant {
+        let centre = load::<PackedScene>("res://place_center_drag.tscn");
+        let centre = centre.instantiate().unwrap();
+        let mut centre = centre.cast::<PlaceCenterDrag>();
+        if piece != ChessPiece::None {
+            let path = piece_to_fen(&piece);
+            if path.len() > 0 {
+                let piece_node = load::<PackedScene>(format!("res://{}.tscn", path));
+                let piece_node = piece_node.instantiate().unwrap();
+                let mut piece_node = piece_node.cast::<Piece>();
+                let mut piece_mut = piece_node.clone();
+                piece_node.set_centered(true);
+                piece_node.set_scale(Vector2::new(0.55, 0.55));
+                let mut piece_mut = piece_mut.bind_mut();
+                piece_mut.piece = string_to_piece(&path);
+                centre.add_child(piece_node.upcast::<Node>());
+            }
+        }
+        centre.to_variant()
     }
 }

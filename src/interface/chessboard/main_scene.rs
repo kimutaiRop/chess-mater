@@ -3,7 +3,10 @@ use godot::{
     prelude::*,
 };
 
-use super::{board::Board, promote::PromotionOverlay};
+use super::{
+    board::{Board, PlayResult},
+    promote::PromotionOverlay,
+};
 
 #[derive(Debug, GodotClass)]
 #[class(base=Node2D)]
@@ -17,7 +20,7 @@ pub struct MainGame {
 #[godot_api]
 impl Node2DVirtual for MainGame {
     fn init(base: Base<Node2D>) -> Self {
-        let fen = "rnb2bnr/pppPkppp/8/6q1/8/8/PPP1PPPP/RNBQKBNR w KQ - 0 4".to_string();
+        let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1".to_string();
 
         MainGame {
             base,
@@ -67,8 +70,10 @@ impl MainGame {
             .unwrap()
             .cast::<Board>();
         let boad_mut = board.bind();
-        let fen = boad_mut.trigger_movement(self.fen.clone(), piece, from, to);
-        self.fen = fen;
+        let play_variant = boad_mut.trigger_movement(self.fen.clone(), piece, from, to);
+        let pay = play_variant.try_to::<PlayResult>();
+        let play = pay.unwrap();
+        self.fen = GodotString::from(play.fen);
         let mut prom_overlay = self.base.get_node_as::<PromotionOverlay>("ModalOverlay");
         prom_overlay.hide();
     }
@@ -84,7 +89,9 @@ impl MainGame {
             .cast::<Board>();
         let boad = board.bind();
 
-        let fen = boad.trigger_movement(self.fen.clone(), GodotString::from(""), from, to);
-        self.fen = fen;
+        let play_variant = boad.trigger_movement(self.fen.clone(), GodotString::from(""), from, to);
+        let pay = play_variant.try_to::<PlayResult>();
+        let play = pay.unwrap();
+        self.fen = GodotString::from(play.fen);
     }
 }
