@@ -14,7 +14,7 @@ pub struct Move {
     pub to: i32,
     pub piece: ChessPiece,
     pub fen: String,
-    pub promote : String,
+    pub promote: String,
 }
 
 // Function to perform en passant
