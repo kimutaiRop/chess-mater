@@ -1,12 +1,13 @@
-[gd_scene load_steps=2 format=3 uid="uid://o80xdhp0mgml"]
+[gd_scene load_steps=3 format=3 uid="uid://o80xdhp0mgml"]
 
 [ext_resource type="PackedScene" uid="uid://8mjh6ulpxmei" path="res://board.tscn" id="1_7pr61"]
+[ext_resource type="PackedScene" uid="uid://bmy4pyjdlsjw8" path="res://promote/modal_overlay.tscn" id="2_7pm58"]
 
-[node name="Node2D" type="Node2D"]
+[node name="MainGame" type="MainGame"]
 
 [node name="Board" parent="." instance=ExtResource("1_7pr61")]
-offset_left = 142.0
-offset_top = 29.0
-offset_right = 1142.0
-offset_bottom = 617.0
-alignment = 1
+
+[node name="ModalOverlay" parent="." instance=ExtResource("2_7pm58")]
+offset_top = 616.0
+offset_right = 1057.0
+offset_bottom = 616.0

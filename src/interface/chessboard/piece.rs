@@ -5,8 +5,6 @@ use godot::prelude::*;
 #[class(base=Sprite2D)]
 pub struct Piece {
     pub piece: ChessPiece,
-    pub moved: bool,
-    pub times_moved: i32,
     #[base]
     pub node: Base<Sprite2D>,
 }
@@ -17,8 +15,6 @@ impl Sprite2DVirtual for Piece {
         Self {
             node,
             piece: ChessPiece::None,
-            moved: false,
-            times_moved: 0,
         }
     }
     fn process(&mut self, _delta: f64) {}

@@ -1,22 +1,14 @@
 [gd_scene format=3 uid="uid://8mjh6ulpxmei"]
 
 [node name="Board" type="VBoxContainer"]
-offset_left = 164.0
-offset_top = 35.0
-offset_right = 1164.0
-offset_bottom = 633.0
+offset_left = 57.0
+offset_top = 24.0
+offset_right = 1057.0
+offset_bottom = 612.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="."]
 custom_minimum_size = Vector2(1000, 0)
 layout_mode = 2
 
 [node name="Board" type="Board" parent="HBoxContainer"]
-_import_path = NodePath("")
-unique_name_in_owner = false
-process_mode = 0
-process_priority = 0
-process_physics_priority = 0
-process_thread_group = 0
-editor_description = ""
 layout_mode = 2
-script = null

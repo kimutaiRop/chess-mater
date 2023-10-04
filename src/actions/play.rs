@@ -3,7 +3,7 @@ use crate::interface::chessboard::piece::{board_to_fen, fen_to_board, ChessPiece
 use super::{
     capture::in_check,
     path::{
-        bishop_possible_squares, king_possible_squares, knight_possible_squares,
+        bishop_possible_squares, enpassant_moves, king_possible_squares, knight_possible_squares,
         rook_possible_squares,
     },
 };
@@ -13,8 +13,8 @@ pub struct Move {
     pub from: i32,
     pub to: i32,
     pub piece: ChessPiece,
-    pub moved: bool,
     pub fen: String,
+    pub promote : String,
 }
 
 // Function to perform en passant
@@ -88,11 +88,10 @@ fn pawn_move(move_: &Move) -> (String, bool) {
     if !posible_moves.contains(&move_.to) {
         return (move_.fen.clone(), false);
     }
-    let emnp_squares = super::path::enpassant_moves(move_.from, piece, &move_.fen);
-    if emnp_squares.contains(&move_.to) {
+    let enp_squares = enpassant_moves(move_.from, piece, &move_.fen);
+    if enp_squares.contains(&move_.to) {
         return do_en_passant(move_);
     }
-
     if posible_moves.contains(&move_.to) {
         let mut enpassant_string = String::from("-");
         let starting_rank = match piece.color() {
@@ -349,7 +348,6 @@ fn king_move(move_: &Move) -> (String, bool) {
     if col_diff.abs() > 1 {
         return castle_move(move_);
     }
-    println!("possible_sqrs: {:?}", possible_sqrs);
     if possible_sqrs.contains(&move_.to) {
         // target square does not contain a piece of the same color
         let move_sqr = board_pieces[move_.to as usize];
