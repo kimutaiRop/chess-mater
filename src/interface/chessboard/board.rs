@@ -6,7 +6,7 @@ use godot::engine::{GridContainer, GridContainerVirtual};
 use godot::prelude::*;
 
 use crate::actions::path::enpassant_moves;
-use crate::actions::play::{make_move, Move};
+use crate::actions::play::{make_move, GameState, Move};
 use crate::interface::chessboard::piece::{piece_to_fen, string_to_piece};
 use crate::interface::chessboard::promote::PromotionOverlay;
 
@@ -32,12 +32,29 @@ pub struct PlaceCenterDrag {
     _node: Base<CenterContainer>,
 }
 
+#[derive(Debug, Clone, godot::prelude::ToVariant, FromVariant)]
+pub enum GameStateVariant {
+    Checkmate,
+    Stalemate,
+    Normal,
+}
+
+impl GameStateVariant {
+    pub fn from_game_state(state: GameState) -> Self {
+        match state {
+            GameState::Checkmate => GameStateVariant::Checkmate,
+            GameState::Stalemate => GameStateVariant::Stalemate,
+            GameState::Normal => GameStateVariant::Normal,
+        }
+    }
+}
+
 #[derive(Debug, godot::prelude::ToVariant, FromVariant)]
 pub struct PlayResult {
     pub fen: String,
     pub moved: bool,
     pub check: bool,
-    pub checkmate: bool,
+    pub state: GameStateVariant,
 }
 
 #[godot_api]
@@ -326,7 +343,7 @@ impl Board {
                 fen: fen.to_string(),
                 moved: false,
                 check: false,
-                checkmate: false,
+                state: GameStateVariant::Normal,
             });
         }
         let mut from_node = from_node.unwrap();
@@ -336,7 +353,7 @@ impl Board {
                 fen: fen.to_string(),
                 moved: false,
                 check: false,
-                checkmate: false,
+                state: GameStateVariant::Normal,
             });
         }
 
@@ -346,7 +363,7 @@ impl Board {
                 fen: fen.to_string(),
                 moved: false,
                 check: false,
-                checkmate: false,
+                state: GameStateVariant::Normal,
             });
         }
         let piece = piece.clone().unwrap().try_cast::<Piece>().unwrap();
@@ -366,7 +383,7 @@ impl Board {
                 fen: fen.to_string(),
                 moved: false,
                 check: false,
-                checkmate: false,
+                state: GameStateVariant::Normal,
             });
         }
         let old_fen = fen.to_string();
@@ -387,7 +404,7 @@ impl Board {
                         fen: fen.to_string(),
                         moved: false,
                         check: false,
-                        checkmate: false,
+                        state: GameStateVariant::Normal,
                     });
                 }
                 let mut empassant_pawn = empassant_pawn.unwrap();
@@ -405,7 +422,7 @@ impl Board {
                 fen: fen.to_string(),
                 moved: false,
                 check: false,
-                checkmate: false,
+                state: GameStateVariant::Normal,
             });
         }
         let mut to_node = to_node.unwrap();
@@ -426,7 +443,7 @@ impl Board {
                     fen: fen.to_string(),
                     moved: false,
                     check: false,
-                    checkmate: false,
+                    state: GameStateVariant::Normal,
                 });
             }
         } else if piece_move.piece == ChessPiece::WKing && move_diff.abs() == 2 {
@@ -440,7 +457,7 @@ impl Board {
                     fen: fen.to_string(),
                     moved: false,
                     check: false,
-                    checkmate: false,
+                    state: GameStateVariant::Normal,
                 });
             }
         }
@@ -487,7 +504,7 @@ impl Board {
                     fen: fen.to_string(),
                     moved: false,
                     check: false,
-                    checkmate: false,
+                    state: GameStateVariant::Normal,
                 });
             }
             to_node.add_child(piece.unwrap().upcast::<Node>());
@@ -498,7 +515,7 @@ impl Board {
             fen: play.0,
             moved: play.1,
             check: play.2,
-            checkmate: play.3,
+            state: GameStateVariant::from_game_state(play.3),
         });
     }
 

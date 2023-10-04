@@ -17,6 +17,13 @@ pub struct Move {
     pub promote: String,
 }
 
+#[derive(Debug)]
+pub enum GameState {
+    Checkmate,
+    Stalemate,
+    Normal,
+}
+
 // Function to perform en passant
 fn do_en_passant(move_: &Move) -> (String, bool) {
     let mut board_pieces: [ChessPiece; 64] = fen_to_board(&move_.fen.clone());
@@ -405,7 +412,7 @@ fn king_move(move_: &Move) -> (String, bool) {
     return (move_.fen.clone(), false);
 }
 
-pub fn make_move(move_: &Move) -> (String, bool, bool, bool) {
+pub fn make_move(move_: &Move) -> (String, bool, bool, GameState) {
     let board_pieces: [ChessPiece; 64] = fen_to_board(&move_.fen.clone());
     let turn = move_.fen.split(" ").collect::<Vec<&str>>()[1];
     let color = match turn {
@@ -414,10 +421,10 @@ pub fn make_move(move_: &Move) -> (String, bool, bool, bool) {
         _ => Color::White,
     };
     if color != move_.piece.color() {
-        return (move_.fen.clone(), false, false, false);
+        return (move_.fen.clone(), false, false, GameState::Normal);
     }
     if move_.from == move_.to {
-        return (move_.fen.clone(), false, false, false);
+        return (move_.fen.clone(), false, false, GameState::Normal);
     }
 
     let piece = board_pieces[move_.from as usize];
@@ -429,11 +436,11 @@ pub fn make_move(move_: &Move) -> (String, bool, bool, bool) {
         ChessPiece::BRook | ChessPiece::WRook => rook_move,
         ChessPiece::BQueen | ChessPiece::WQueen => queen_move,
         ChessPiece::BKing | ChessPiece::WKing => king_move,
-        ChessPiece::None => return (move_.fen.clone(), false, false, false),
+        ChessPiece::None => return (move_.fen.clone(), false, false, GameState::Normal),
     };
     let (mut fen, moved) = move_fn(move_);
     if !moved {
-        return (fen, false, false, false);
+        return (fen, false, false, GameState::Normal);
     }
     let fen_part = fen.split(" ").collect::<Vec<&str>>()[0];
     let mut rules_part = fen.split(" ").collect::<Vec<&str>>()[1..].to_vec();
@@ -464,7 +471,7 @@ pub fn make_move(move_: &Move) -> (String, bool, bool, bool) {
 
     let is_check = in_check(&fen_to_board(&fen), opp_color);
     if !is_check {
-        return (fen, true, false, false);
+        return (fen, true, false, GameState::Normal);
     }
     let mut opp_king_pos = 0;
     for (i, piece) in board_pieces.iter().enumerate() {
@@ -486,5 +493,12 @@ pub fn make_move(move_: &Move) -> (String, bool, bool, bool) {
         opp_king_pos,
         rules_part.split(" ").collect::<Vec<&str>>()[2],
     ); // is checkmate
-    (fen, moved, is_check, king_pos_moved.len() == 0)
+    let state = if king_pos_moved.len() == 0 && is_check {
+        GameState::Checkmate
+    } else if king_pos_moved.len() == 0 && !is_check {
+        GameState::Stalemate
+    } else {
+        GameState::Normal
+    };
+    (fen, moved, is_check, state)
 }
