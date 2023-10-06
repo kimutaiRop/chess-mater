@@ -154,6 +154,16 @@ pub enum Color {
     Black,
 }
 
+// toggle color
+impl Color {
+    pub fn toggle(&mut self) -> Self {
+        match self {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
+        }
+    }
+}
+
 impl ChessPiece {
     pub fn color(&self) -> Color {
         // uppercase is white and lowercase is black (return)
@@ -162,6 +172,24 @@ impl ChessPiece {
             Color::White
         } else {
             Color::Black
+        }
+    }
+
+    pub fn piece_value(&self) -> i32 {
+        match self {
+            ChessPiece::BPawn => 1,
+            ChessPiece::WPawn => 1,
+            ChessPiece::BKnight => 3,
+            ChessPiece::WKnight => 3,
+            ChessPiece::BBishop => 3,
+            ChessPiece::WBishop => 3,
+            ChessPiece::BRook => 5,
+            ChessPiece::WRook => 5,
+            ChessPiece::BQueen => 9,
+            ChessPiece::WQueen => 9,
+            ChessPiece::BKing => 100,
+            ChessPiece::WKing => 100,
+            ChessPiece::None => 0,
         }
     }
 }

@@ -1,10 +1,11 @@
+use crate::{actions::play::Game, interface::chessboard::piece::Color as PieceColor};
 use godot::{
     engine::{Node2D, Node2DVirtual, VBoxContainer},
     prelude::*,
 };
 
 use super::{
-    board::{Board, PlayResult},
+    board::{Board, GameStateVariant, PlayResult},
     promote::PromotionOverlay,
 };
 
@@ -14,23 +15,26 @@ pub struct MainGame {
     promotion_overlay: Gd<PackedScene>,
     #[base]
     base: Base<Node2D>,
-    pub fen: GodotString,
+    game: Game,
+    game_over: bool,
+    engine_color: PieceColor,
 }
 
 #[godot_api]
 impl Node2DVirtual for MainGame {
     fn init(base: Base<Node2D>) -> Self {
-        let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1".to_string();
+        let fen = "rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq a4 0 1".to_string();
 
         MainGame {
             base,
             promotion_overlay: PackedScene::new(),
-            fen: GodotString::from(fen),
+            game: Game::new(&fen, None),
+            game_over: false,
+            engine_color: PieceColor::Black,
         }
     }
 
     fn ready(&mut self) {
-        println!("MainGame::ready()");
         self.promotion_overlay = load("res://promote/modal_overlay.tscn");
         let mut prom_overlay = self.base.get_node_as::<PromotionOverlay>("ModalOverlay");
         let board_hbox = self.base.get_node_as::<VBoxContainer>("Board");
@@ -54,14 +58,19 @@ impl Node2DVirtual for MainGame {
         );
         // get mut ref to board
         let board_mut = board.bind();
-        board_mut.add_pieces(self.fen.clone());
+
+        board_mut.add_pieces(GodotString::from(self.game.fen.clone()));
+        if self.engine_color == PieceColor::White {
+            // self.engine_play();
+        }
     }
 }
 
 #[godot_api]
 impl MainGame {
     #[func]
-    fn on_choose_piece(&mut self, piece: GodotString, from: i32, to: i32) {
+    fn engine_play(&mut self) {
+        println!("engine play");
         let board = self.base.get_node_as::<VBoxContainer>("Board");
         let board = board
             .get_child(0)
@@ -69,17 +78,38 @@ impl MainGame {
             .get_child(0)
             .unwrap()
             .cast::<Board>();
-        let boad_mut = board.bind();
-        let play_variant = boad_mut.trigger_movement(self.fen.clone(), piece, from, to);
-        let pay = play_variant.try_to::<PlayResult>();
-        let play = pay.unwrap();
-        self.fen = GodotString::from(play.fen);
+        let board_mut = board.bind();
+    }
+
+    #[func]
+    fn on_choose_piece(&mut self, piece: GodotString, from: i32, to: i32) {
+        if self.game_over {
+            return;
+        }
+        let board = self.base.get_node_as::<VBoxContainer>("Board");
+        let board = board
+            .get_child(0)
+            .unwrap()
+            .get_child(0)
+            .unwrap()
+            .cast::<Board>();
+        // let board_mut = board.bind();
+        // let play_variant = board_mut.trigger_movement(piece, from, to);
+        // let pay = play_variant.try_to::<PlayResult>();
+        // let play = pay.unwrap();
         let mut prom_overlay = self.base.get_node_as::<PromotionOverlay>("ModalOverlay");
         prom_overlay.hide();
+
+        if self.game.turn == self.engine_color && !self.game_over {
+            // self.engine_play();
+        }
     }
 
     #[func]
     fn on_trigger_move(&mut self, from: i32, to: i32) {
+        if self.game_over {
+            return;
+        }
         let board = self.base.get_node_as::<VBoxContainer>("Board");
         let board = board
             .get_child(0)
@@ -87,11 +117,20 @@ impl MainGame {
             .get_child(0)
             .unwrap()
             .cast::<Board>();
-        let boad = board.bind();
+        // let board_mut = board.bind();
 
-        let play_variant = boad.trigger_movement(self.fen.clone(), GodotString::from(""), from, to);
-        let pay = play_variant.try_to::<PlayResult>();
-        let play = pay.unwrap();
-        self.fen = GodotString::from(play.fen);
+        // let play_variant =
+        //     board_mut.trigger_movement(GodotString::from(""), from, to);
+        // let pay = play_variant.try_to::<PlayResult>();
+        // let play = pay.unwrap();
+        // if play.state == GameStateVariant::Draw || play.state == GameStateVariant::Checkmate {
+        //     self.game_over = true;
+        //     // let mut prom_overlay = self.base.get_node_as::<PromotionOverlay>("ModalOverlay");
+        //     // prom_overlay.show();
+        // }
+
+        if self.game.turn == self.engine_color && !self.game_over {
+            // self.engine_play();
+        }
     }
 }

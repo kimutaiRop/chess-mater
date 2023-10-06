@@ -6,7 +6,7 @@ use godot::engine::{GridContainer, GridContainerVirtual};
 use godot::prelude::*;
 
 use crate::actions::path::enpassant_moves;
-use crate::actions::play::{make_move, GameState, Move};
+use crate::actions::play::{Game, GameState, Move, MoveType};
 use crate::interface::chessboard::piece::{piece_to_fen, string_to_piece};
 use crate::interface::chessboard::promote::PromotionOverlay;
 
@@ -32,7 +32,7 @@ pub struct PlaceCenterDrag {
     _node: Base<CenterContainer>,
 }
 
-#[derive(Debug, Clone, godot::prelude::ToVariant, FromVariant)]
+#[derive(Debug, PartialEq, Clone, godot::prelude::ToVariant, FromVariant)]
 pub enum GameStateVariant {
     Checkmate,
     Stalemate,
@@ -53,7 +53,6 @@ impl GameStateVariant {
 
 #[derive(Debug, godot::prelude::ToVariant, FromVariant)]
 pub struct PlayResult {
-    pub fen: String,
     pub moved: bool,
     pub check: bool,
     pub state: GameStateVariant,
@@ -330,43 +329,34 @@ impl Board {
     fn trigger_move() {}
 
     #[func]
-    pub fn trigger_movement(
-        &self,
-        fen: GodotString,
-        promote: GodotString,
-        from: i32,
-        to: i32,
-    ) -> Variant {
+    pub fn trigger_movement(&self, promote: GodotString, from: i32, to: i32) {
         let board_node = self.node.clone().upcast::<Node>();
         let from_node = board_node.get_child(from).unwrap();
         let from_node = from_node.clone().try_cast::<PlaceCenter>();
         if from_node.is_none() {
-            return Variant::from(PlayResult {
-                fen: fen.to_string(),
-                moved: false,
-                check: false,
-                state: GameStateVariant::Normal,
-            });
+            // return Variant::from(PlayResult {
+            //     moved: false,
+            //     check: false,
+            //     state: GameStateVariant::Normal,
+            // });
         }
         let mut from_node = from_node.unwrap();
         let from_centre_node_drag = from_node.get_child(1);
         if from_centre_node_drag.is_none() {
-            return Variant::from(PlayResult {
-                fen: fen.to_string(),
-                moved: false,
-                check: false,
-                state: GameStateVariant::Normal,
-            });
+            // return Variant::from(PlayResult {
+            //     moved: false,
+            //     check: false,
+            //     state: GameStateVariant::Normal,
+            // });
         }
 
         let piece = from_centre_node_drag.clone().unwrap().get_child(0);
         if piece.is_none() {
-            return Variant::from(PlayResult {
-                fen: fen.to_string(),
-                moved: false,
-                check: false,
-                state: GameStateVariant::Normal,
-            });
+            // return Variant::from(PlayResult {
+            //     moved: false,
+            //     check: false,
+            //     state: GameStateVariant::Normal,
+            // });
         }
         let piece = piece.clone().unwrap().try_cast::<Piece>().unwrap();
         let piece = piece.bind();
@@ -375,44 +365,43 @@ impl Board {
             from: from,
             to: to,
             piece: piece.piece,
-            fen: fen.to_string(),
             promote: promote.to_string(),
+            move_type :MoveType::Normal,
+            captured_piece: ChessPiece::None,
+            castling_rights: "-".to_string(),
         };
 
-        let play = make_move(&piece_move); //fen, moved, check, checkmate
-        if !play.1 {
-            return Variant::from(PlayResult {
-                fen: fen.to_string(),
-                moved: false,
-                check: false,
-                state: GameStateVariant::Normal,
-            });
+        let mut game = Game::new("",None);
+        let play = game.make_move(&piece_move); //fen, moved, check, checkmate
+        if !play {
+            // return Variant::from(PlayResult {
+            //     moved: false,
+            //     check: false,
+            //     state: GameStateVariant::Normal,
+            // });
         }
-        let old_fen = fen.to_string();
 
         let move_diff = piece_move.from - piece_move.to;
         if piece_move.piece == ChessPiece::BPawn || piece_move.piece == ChessPiece::WPawn {
-            let pos_moved = enpassant_moves(from, piece_move.piece, &old_fen);
-            if pos_moved.contains(&to) {
-                let enp_pos = if piece_move.piece == ChessPiece::BPawn {
-                    to - 8
-                } else {
-                    to + 8
-                };
-                let empassant_pawn = board_node.get_child(enp_pos).unwrap();
-                let empassant_pawn = empassant_pawn.try_cast::<PlaceCenter>();
-                if empassant_pawn.is_none() {
-                    return Variant::from(PlayResult {
-                        fen: fen.to_string(),
-                        moved: false,
-                        check: false,
-                        state: GameStateVariant::Normal,
-                    });
-                }
-                let mut empassant_pawn = empassant_pawn.unwrap();
-                let drag_empassant_pawn = empassant_pawn.get_child(1);
-                empassant_pawn.remove_child(drag_empassant_pawn.unwrap());
+            // let pos_moved = enpassant_moves(from, piece_move.piece, &old_fen);
+            let pos_moved = 2; //TODO: get from old_fen
+            let enp_pos = if piece_move.piece == ChessPiece::BPawn {
+                to - 8
+            } else {
+                to + 8
+            };
+            let empassant_pawn = board_node.get_child(enp_pos).unwrap();
+            let empassant_pawn = empassant_pawn.try_cast::<PlaceCenter>();
+            if empassant_pawn.is_none() {
+                // return Variant::from(PlayResult {
+                //     moved: false,
+                //     check: false,
+                //     state: GameStateVariant::Normal,
+                // });
             }
+            let mut empassant_pawn = empassant_pawn.unwrap();
+            let drag_empassant_pawn = empassant_pawn.get_child(1);
+            empassant_pawn.remove_child(drag_empassant_pawn.unwrap());
         }
 
         from_node.remove_child(from_centre_node_drag.clone().unwrap());
@@ -420,12 +409,11 @@ impl Board {
         let to_node = board_node.get_child(to).unwrap();
         let to_node = to_node.try_cast::<PlaceCenter>();
         if to_node.is_none() {
-            return Variant::from(PlayResult {
-                fen: fen.to_string(),
-                moved: false,
-                check: false,
-                state: GameStateVariant::Normal,
-            });
+            // return Variant::from(PlayResult {
+            //     moved: false,
+            //     check: false,
+            //     state: GameStateVariant::Normal,
+            // });
         }
         let mut to_node = to_node.unwrap();
         let to_centre_node_drag = to_node.get_child(1);
@@ -441,12 +429,11 @@ impl Board {
                 if move_diff > 0 { 3 } else { 5 },
             );
             if !castle {
-                return Variant::from(PlayResult {
-                    fen: fen.to_string(),
-                    moved: false,
-                    check: false,
-                    state: GameStateVariant::Normal,
-                });
+                // return Variant::from(PlayResult {
+                //     moved: false,
+                //     check: false,
+                //     state: GameStateVariant::Normal,
+                // });
             }
         } else if piece_move.piece == ChessPiece::WKing && move_diff.abs() == 2 {
             let castle = Square::move_drag_element(
@@ -455,19 +442,16 @@ impl Board {
                 if move_diff > 0 { 59 } else { 61 },
             );
             if !castle {
-                return Variant::from(PlayResult {
-                    fen: fen.to_string(),
-                    moved: false,
-                    check: false,
-                    state: GameStateVariant::Normal,
-                });
+                // return Variant::from(PlayResult {
+                //     moved: false,
+                //     check: false,
+                //     state: GameStateVariant::Normal,
+                // });
             }
         }
 
-        // if promotion is not ""
         if promote.to_string().as_str() != "" {
-            let array_fen = fen_to_board(&fen.to_string());
-            let pawn = array_fen[to as usize];
+            let pawn = piece_move.piece;
             let piece = match promote.to_string().as_str() {
                 "q" => {
                     if pawn.color() == crate::interface::chessboard::piece::Color::White {
@@ -502,23 +486,21 @@ impl Board {
             let piece = Board::create_piece(piece);
             let piece = piece.try_to::<Gd<PlaceCenterDrag>>();
             if piece.is_err() {
-                return Variant::from(PlayResult {
-                    fen: fen.to_string(),
-                    moved: false,
-                    check: false,
-                    state: GameStateVariant::Normal,
-                });
+                // return Variant::from(PlayResult {
+                //     moved: false,
+                //     check: false,
+                //     state: GameStateVariant::Normal,
+                // });
             }
             to_node.add_child(piece.unwrap().upcast::<Node>());
         } else {
             to_node.add_child(from_centre_node_drag.clone().unwrap());
         }
-        return Variant::from(PlayResult {
-            fen: play.0,
-            moved: play.1,
-            check: play.2,
-            state: GameStateVariant::from_game_state(play.3),
-        });
+        // return Variant::from(PlayResult {
+        //     moved: play.1,
+        //     check: play.2,
+        //     state: GameStateVariant::from_game_state(play.3),
+        // });
     }
 
     fn create_grid(&mut self) {

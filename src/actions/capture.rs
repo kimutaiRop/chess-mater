@@ -1,6 +1,9 @@
-use crate::interface::chessboard::piece::{ChessPiece, Color};
+use crate::{
+    actions::path::{pawn_capture_squares, rook_possible_squares},
+    interface::chessboard::piece::{ChessPiece, Color},
+};
 
-use super::path::{knight_possible_squares, queen_attacking_squares};
+use super::path::{bishop_possible_squares, knight_possible_squares, queen_attacking_squares};
 
 pub fn in_check(board: &[ChessPiece; 64], color: Color) -> bool {
     let king = if color == Color::White {
@@ -30,23 +33,27 @@ pub fn in_check(board: &[ChessPiece; 64], color: Color) -> bool {
     for &(piece, piece_pos) in &opponent_pieces {
         match piece {
             ChessPiece::BPawn | ChessPiece::WPawn => {
-                attacking_squares
-                    .extend(super::path::pawn_capture_squares(board, piece, piece_pos));
+                attacking_squares.extend(pawn_capture_squares(board, piece, piece_pos));
             }
             ChessPiece::BBishop | ChessPiece::WBishop => {
-                attacking_squares.extend(super::path::bishop_possible_squares(
-                    board, piece, piece_pos,
-                ));
+                let ba: (Vec<i32>, Vec<i32>) = bishop_possible_squares(board, piece, piece_pos);
+                attacking_squares.extend(ba.0);
+                attacking_squares.extend(ba.1);
             }
             ChessPiece::BRook | ChessPiece::WRook => {
-                attacking_squares
-                    .extend(super::path::rook_possible_squares(board, piece, piece_pos));
+                let rook_possible_squares = rook_possible_squares(board, piece, piece_pos);
+                attacking_squares.extend(rook_possible_squares.0);
+                attacking_squares.extend(rook_possible_squares.1);
             }
             ChessPiece::BQueen | ChessPiece::WQueen => {
-                attacking_squares.extend(queen_attacking_squares(board, piece, piece_pos));
+                let qa: (Vec<i32>, Vec<i32>) = queen_attacking_squares(board, piece, piece_pos);
+                attacking_squares.extend(qa.0);
+                attacking_squares.extend(qa.1);
             }
             ChessPiece::BKnight | ChessPiece::WKnight => {
-                attacking_squares.extend(knight_possible_squares(board, piece, piece_pos));
+                let knight_possible_squares = knight_possible_squares(board, piece, piece_pos);
+                attacking_squares.extend(knight_possible_squares.0);
+                attacking_squares.extend(knight_possible_squares.1);
             }
             _ => continue, // Skip other pieces
         }
@@ -60,11 +67,11 @@ pub fn in_check(board: &[ChessPiece; 64], color: Color) -> bool {
 }
 
 // Helper function to get all pieces of a specific color
-fn get_pieces_by_color(board: &[ChessPiece; 64], color: Color) -> Vec<(ChessPiece, i32)> {
+pub fn get_pieces_by_color(board: &[ChessPiece; 64], color: Color) -> Vec<(ChessPiece, i32)> {
     // get all pieces of a specific color with their positions
     let mut pieces: Vec<(ChessPiece, i32)> = vec![];
     for (i, piece) in board.iter().enumerate() {
-        if piece.color() == color {
+        if piece.color() == color && piece != &ChessPiece::None {
             pieces.push((*piece, i as i32));
         }
     }
