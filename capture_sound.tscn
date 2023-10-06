@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dd85hwod2mj71"]
+
+[ext_resource type="AudioStream" uid="uid://cisrg2b5h0iqe" path="res://sounds/capture.mp3" id="1_6al0q"]
+
+[node name="MoveSound" type="MoveSound"]
+stream = ExtResource("1_6al0q")

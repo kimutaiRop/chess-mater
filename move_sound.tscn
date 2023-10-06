@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://ds611sxheqmgk"]
+
+[ext_resource type="AudioStream" uid="uid://dkqx53lofsjqh" path="res://sounds/move.mp3" id="1_2ij7q"]
+
+[node name="MoveSound" type="MoveSound"]
+stream = ExtResource("1_2ij7q")

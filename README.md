@@ -1,15 +1,25 @@
-# readme
+# Chess Mater
 
+this is a chess game made in rust + godot
+
+## How to run
+
+### Rust
+
+```bash
+cargo build
 ```
-find . -name '*.so'   # Find all files with .so extension
+
+### Godot
+
+```bash
+godot
 ```
 
-[configuration]
-entry_symbol = "gdext_rust_init"
-compatibility_minimum = 4.1
-[libraries]
-linux.debug.x86_64 = "res://./target/debug/libchess_mater.so"
-linux.x86_64 = "res://./target/debug/libchess_mater.so"
+## How to play
 
-`cargo build && cp ./target/debug/libchess_mater.so .`
+### Controls
 
+- Mouse drag to move pieces
+
+### Rules
