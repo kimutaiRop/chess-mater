@@ -1,13 +1,25 @@
-[gd_scene load_steps=3 format=3 uid="uid://o80xdhp0mgml"]
+[gd_scene load_steps=7 format=3 uid="uid://o80xdhp0mgml"]
 
 [ext_resource type="PackedScene" uid="uid://8mjh6ulpxmei" path="res://board.tscn" id="1_7pr61"]
 [ext_resource type="PackedScene" uid="uid://bmy4pyjdlsjw8" path="res://promote/modal_overlay.tscn" id="2_7pm58"]
+[ext_resource type="PackedScene" uid="uid://ds611sxheqmgk" path="res://move_sound.tscn" id="3_fnk63"]
+[ext_resource type="PackedScene" uid="uid://dd85hwod2mj71" path="res://capture_sound.tscn" id="4_wmilm"]
+[ext_resource type="PackedScene" uid="uid://cky0nchypoupg" path="res://castle.tscn" id="5_gpahs"]
+[ext_resource type="PackedScene" uid="uid://c5c1fstc5kv2e" path="res://check_sound.tscn" id="6_t3k8o"]
 
 [node name="MainGame" type="MainGame"]
 
 [node name="Board" parent="." instance=ExtResource("1_7pr61")]
 
+[node name="MoveSound" parent="." instance=ExtResource("3_fnk63")]
+
 [node name="ModalOverlay" parent="." instance=ExtResource("2_7pm58")]
 offset_top = 616.0
 offset_right = 1057.0
 offset_bottom = 616.0
+
+[node name="CaptureSound" parent="." instance=ExtResource("4_wmilm")]
+
+[node name="CastleSound" parent="." instance=ExtResource("5_gpahs")]
+
+[node name="CheckSound" parent="." instance=ExtResource("6_t3k8o")]

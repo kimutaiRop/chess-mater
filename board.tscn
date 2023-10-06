@@ -1,10 +1,10 @@
 [gd_scene format=3 uid="uid://8mjh6ulpxmei"]
 
 [node name="Board" type="VBoxContainer"]
-offset_left = 57.0
+offset_left = 24.0
 offset_top = 24.0
-offset_right = 647.0
-offset_bottom = 612.0
+offset_right = 614.0
+offset_bottom = 614.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="."]
 layout_mode = 2

@@ -4,3 +4,4 @@
 custom_minimum_size = Vector2(70, 70)
 offset_right = 40.0
 offset_bottom = 40.0
+rotation = 3.14159

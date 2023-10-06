@@ -26,7 +26,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn generate_best_move(game: &mut Game, color: PieceColor) -> Move {
+    pub fn generate_best_move(&mut self, game: &mut Game, color: PieceColor) -> Move {
         let (valuation, best_move) =
             alpha_beta_search(game, 3, std::f64::NEG_INFINITY, std::f64::INFINITY, color);
         println!("best move: {:?}", best_move);
@@ -196,9 +196,9 @@ fn evaluate_and_search(
             captured_piece: mv.captured_piece,
             castling_rights: castling_part.to_string(),
         };
-        let move_res = game.make_move(&move_);
+        let (moved, check) = game.make_move(&move_);
 
-        if !move_res {
+        if !moved {
             // If the move puts the opponent in check, we want to search deeper
             let (value, new_best_move) = alpha_beta_search(
                 game,

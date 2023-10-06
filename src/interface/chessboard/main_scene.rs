@@ -3,7 +3,7 @@ use crate::{
         path::enpassant_moves,
         play::{Game, Move, MoveType},
     },
-    interface::chessboard::piece::{ChessPiece, Color as PieceColor, Piece},
+    interface::chessboard::piece::{ChessPiece, Color as PieceColor},
 };
 use godot::{
     engine::{Node2D, Node2DVirtual, VBoxContainer},
@@ -20,11 +20,29 @@ use super::{
 #[class(base=Node2D)]
 pub struct MainGame {
     promotion_overlay: Gd<PackedScene>,
+    move_sound: Option<Gd<AudioStreamPlayer>>,
+    capture_sound: Option<Gd<AudioStreamPlayer>>,
+    castle_sound: Option<Gd<AudioStreamPlayer>>,
+    check_sound: Option<Gd<AudioStreamPlayer>>,
     #[base]
     base: Base<Node2D>,
     game: Game,
     game_over: bool,
     engine_color: PieceColor,
+}
+
+#[derive(Debug, GodotClass)]
+#[class(base=AudioStreamPlayer)]
+pub struct MoveSound {
+    #[base]
+    base: Base<AudioStreamPlayer>,
+}
+
+#[godot_api]
+impl AudioStreamPlayerVirtual for MoveSound {
+    fn init(base: Base<AudioStreamPlayer>) -> Self {
+        MoveSound { base }
+    }
 }
 
 #[godot_api]
@@ -38,13 +56,25 @@ impl Node2DVirtual for MainGame {
             game: Game::new(&fen, None),
             game_over: false,
             engine_color: PieceColor::Black,
+            move_sound: None,
+            capture_sound: None,
+            castle_sound: None,
+            check_sound: None,
         }
     }
 
     fn ready(&mut self) {
         self.promotion_overlay = load("res://promote/modal_overlay.tscn");
+        self.move_sound = Some(self.base.get_node_as::<AudioStreamPlayer>("MoveSound"));
+        self.capture_sound = Some(self.base.get_node_as::<AudioStreamPlayer>("CaptureSound"));
+        self.castle_sound = Some(self.base.get_node_as::<AudioStreamPlayer>("CastleSound"));
+        self.check_sound = Some(self.base.get_node_as::<AudioStreamPlayer>("CheckSound"));
         let mut prom_overlay = self.base.get_node_as::<PromotionOverlay>("ModalOverlay");
-        let board_hbox = self.base.get_node_as::<VBoxContainer>("Board");
+        let mut board_hbox = self.base.get_node_as::<VBoxContainer>("Board");
+        if self.engine_color != PieceColor::Black {
+            board_hbox.set_rotation_degrees(180.0);
+            board_hbox.set_position(Vector2::new(614.0, 614.0));
+        }
         let mut board = board_hbox
             .get_child(0)
             .unwrap()
@@ -64,9 +94,13 @@ impl Node2DVirtual for MainGame {
             Callable::from_object_method(node.clone(), "on_trigger_move"),
         );
         // get mut ref to board
-        let board_mut = board.bind();
+        let board_mut = &mut board.bind_mut();
 
-        board_mut.add_pieces(GodotString::from(self.game.fen.clone()));
+        board_mut.add_pieces(
+            GodotString::from(self.game.fen.clone()),
+            self.engine_color.toggle(),
+        );
+        board_mut.orientation = self.engine_color.toggle();
         // if self.engine_color == PieceColor::White {
         //     // self.engine_play();
         // }
@@ -75,16 +109,71 @@ impl Node2DVirtual for MainGame {
 
 #[godot_api]
 impl MainGame {
-    #[func]
+    #[signal]
+    fn update_board();
+
     fn engine_play(&mut self) {
         println!("engine play");
-        let board = self.base.get_node_as::<VBoxContainer>("Board");
-        let board = board
-            .get_child(0)
-            .unwrap()
-            .get_child(0)
-            .unwrap()
-            .cast::<Board>();
+
+        let engine = self.game.engine.clone();
+        if engine.is_none() {
+            return;
+        }
+        let mut engine = engine.unwrap();
+        let best_move = engine.generate_best_move(&mut self.game, self.engine_color);
+
+        let mut node = self.base.clone().cast::<MainGame>();
+        node.emit_signal(
+            "update_board".into(),
+            &[Variant::from(PieceMove::from_move(&best_move))],
+        );
+    }
+
+    fn play_sound(&mut self, move_: &Move, check: bool) {
+        if move_.captured_piece == ChessPiece::None {
+            if move_.move_type == MoveType::Castle {
+                if let Some(sound) = &mut self.castle_sound {
+                    sound.play();
+                    if check {
+                        if let Some(sound) = &mut self.check_sound {
+                            sound.play();
+                        }
+                    }
+                }
+            }
+            if let Some(sound) = &mut self.move_sound {
+                // IF ENPASSANT
+                if move_.move_type == MoveType::EnPassant {
+                    if let Some(sound) = &mut self.capture_sound {
+                        if check {
+                            if let Some(sound) = &mut self.check_sound {
+                                sound.play();
+                            }
+                        } else {
+                            sound.play();
+                        }
+                    }
+                } else {
+                    if check {
+                        if let Some(sound) = &mut self.check_sound {
+                            sound.play();
+                        }
+                    } else {
+                        sound.play();
+                    }
+                }
+            }
+        } else {
+            if let Some(sound) = &mut self.capture_sound {
+                if check {
+                    if let Some(sound) = &mut self.check_sound {
+                        sound.play();
+                    }
+                } else {
+                    sound.play();
+                }
+            }
+        }
     }
 
     #[func]
@@ -95,14 +184,6 @@ impl MainGame {
         }
         let board_placement = fen_to_board(&self.game.fen);
         let rules_part = self.game.fen.split(" ").collect::<Vec<&str>>();
-        let board = self.base.get_node_as::<VBoxContainer>("Board");
-        let board = board
-            .get_child(0)
-            .unwrap()
-            .get_child(0)
-            .unwrap()
-            .cast::<Board>();
-        let board_mut = board.bind();
         let move_ = Move {
             from: from,
             to: to,
@@ -112,15 +193,20 @@ impl MainGame {
             move_type: MoveType::Promotion,
             castling_rights: rules_part[2].to_string(),
         };
-        let moved = self.game.make_move(&move_);
-        if moved {
-            let p_move = PieceMove::from_move(&move_);
-            let mut prom_overlay = self.base.get_node_as::<PromotionOverlay>("ModalOverlay");
-            prom_overlay.hide();
+        let mut prom_overlay = self.base.get_node_as::<PromotionOverlay>("ModalOverlay");
+        prom_overlay.hide();
 
-            board_mut.trigger_movement(Variant::from(p_move));
+        let (moved, check) = self.game.make_move(&move_);
+        if moved {
+            self.play_sound(&move_, check);
+            self.game.turn = self.game.turn.toggle();
+            let p_move = PieceMove::from_move(&move_);
+            let mut node = self.base.clone().cast::<MainGame>();
+            node.emit_signal("update_board".into(), &[Variant::from(p_move)]);
             if self.game.turn == self.engine_color && !self.game_over {
-                // self.engine_play();
+                // sleep(Duration::from_millis(10000));
+                println!("engine play");
+                // self.engine_play(); //TODO: engine play is not working (threading issue)
             }
         }
     }
@@ -132,14 +218,6 @@ impl MainGame {
         }
         let board_placement = fen_to_board(&self.game.fen);
         let rules_part = self.game.fen.split(" ").collect::<Vec<&str>>();
-        let board = self.base.get_node_as::<VBoxContainer>("Board");
-        let board = board
-            .get_child(0)
-            .unwrap()
-            .get_child(0)
-            .unwrap()
-            .cast::<Board>();
-        let board_mut = board.bind();
         let piece = board_placement[from as usize];
         let enp_squares = if piece == ChessPiece::WPawn || piece == ChessPiece::BPawn {
             enpassant_moves(from, piece, &self.game.fen)
@@ -150,7 +228,7 @@ impl MainGame {
         let is_enp = enp_squares.contains(&to);
 
         let is_casle =
-            (piece == ChessPiece::WPawn || piece == ChessPiece::BPawn) && (from - to).abs() == 2;
+            (piece == ChessPiece::BKing || piece == ChessPiece::WKing) && (from - to).abs() == 2;
 
         let move_tye = if is_enp {
             MoveType::EnPassant
@@ -159,6 +237,8 @@ impl MainGame {
         } else {
             MoveType::Normal
         };
+
+        println!("move type {:?}", move_tye);
 
         let move_ = Move {
             from: from,
@@ -169,13 +249,17 @@ impl MainGame {
             move_type: move_tye,
             castling_rights: rules_part[2].to_string(),
         };
-        let moved = self.game.make_move(&move_);
+        let (moved, check) = self.game.make_move(&move_);
         if moved {
-            let p_move = PieceMove::from_move(&move_);
+            self.play_sound(&move_, check);
 
-            board_mut.trigger_movement(Variant::from(p_move));
+            self.game.turn = self.game.turn.toggle();
+            let p_move = PieceMove::from_move(&move_);
+            let mut node = self.base.clone().cast::<MainGame>();
+            node.emit_signal("update_board".into(), &[Variant::from(p_move)]);
             if self.game.turn == self.engine_color && !self.game_over {
-                // self.engine_play();
+                println!("engine play");
+                // self.engine_play();  //TODO: engine play is not working (threading issue)
             }
         }
     }

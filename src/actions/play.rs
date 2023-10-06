@@ -472,7 +472,7 @@ impl Game {
         return (self.fen.clone(), false);
     }
 
-    pub fn make_move(&mut self, move_: &Move) -> bool {
+    pub fn make_move(&mut self, move_: &Move) -> (bool, bool) {
         let board_pieces: [ChessPiece; 64] = fen_to_board(&self.fen.clone());
         let turn = self.fen.split(" ").collect::<Vec<&str>>()[1];
         let color = match turn {
@@ -481,10 +481,10 @@ impl Game {
             _ => Color::White,
         };
         if color != move_.piece.color() {
-            return false;
+            return (false, false);
         }
         if move_.from == move_.to {
-            return false;
+            return (false, false);
         }
 
         let piece = board_pieces[move_.from as usize];
@@ -497,12 +497,12 @@ impl Game {
             ChessPiece::BQueen | ChessPiece::WQueen => self.queen_move(move_),
             ChessPiece::BKing | ChessPiece::WKing => self.king_move(move_),
             ChessPiece::None => {
-                return false;
+                return (false, false);
             }
         };
 
         if !moved {
-            return false;
+            return (false, false);
         }
 
         let fen_part = fen.split(" ").collect::<Vec<&str>>()[0];
@@ -546,12 +546,12 @@ impl Game {
             .collect::<Vec<&ChessPiece>>();
 
         if black_rem_pieces.len() == 1 && white_rem_pieces.len() == 1 {
-            return false;
+            return (false, false);
         }
         if black_rem_pieces.len() < 3 && white_rem_pieces.len() < 3 {
             let is_draw = is_insufficient_material(black_rem_pieces, white_rem_pieces);
             if is_draw {
-                return false;
+                return (false, false);
             }
         }
 
@@ -603,7 +603,7 @@ impl Game {
                 None
             };
         }
-        return true;
+        return (true, is_check);
     }
     pub fn unmake_move(&mut self, move_: &Move) -> bool {
         let is_en_passant = move_.move_type == MoveType::EnPassant;

@@ -5,12 +5,14 @@ use godot::engine::{
 use godot::engine::{GridContainer, GridContainerVirtual};
 use godot::prelude::*;
 
-use crate::actions::path::enpassant_moves;
-use crate::actions::play::{Game, GameState, Move, MoveType};
+use crate::actions::play::{GameState, Move, MoveType};
 use crate::interface::chessboard::piece::{piece_to_fen, string_to_piece};
+use crate::interface::chessboard::piece::{ChessPiece, Color as PieceColor, Piece};
+
 use crate::interface::chessboard::promote::PromotionOverlay;
 
-use super::piece::{fen_to_board, ChessPiece, Piece};
+use super::main_scene::MainGame;
+use super::piece::fen_to_board;
 use super::promote::{PromoteMove, PromoteVbox};
 
 #[derive(GodotClass)]
@@ -326,6 +328,7 @@ pub struct Board {
     pub promote: Option<Gd<PromoteVbox>>,
     #[base]
     node: Base<GridContainer>,
+    pub orientation: PieceColor,
 }
 
 #[godot_api]
@@ -339,9 +342,27 @@ impl GridContainerVirtual for Board {
         let mut board = Self {
             node,
             promote: None,
+            orientation: PieceColor::White,
         };
         board.create_grid();
         board
+    }
+
+    fn ready(&mut self) {
+        let main_game = self
+            .node
+            .get_parent()
+            .unwrap()
+            .get_parent()
+            .unwrap()
+            .get_parent()
+            .unwrap();
+        let mut main_game = main_game.try_cast::<MainGame>().unwrap();
+        let node = self.node.clone().upcast::<Node>();
+        main_game.connect(
+            "update_board".into(),
+            Callable::from_object_method(node, "trigger_movement"),
+        );
     }
 }
 
@@ -445,7 +466,7 @@ impl Board {
                 }
                 _ => ChessPiece::None,
             };
-            let piece = Board::create_piece(piece);
+            let piece = Board::create_piece(piece, self.orientation);
             let piece = piece.try_to::<Gd<PlaceCenterDrag>>();
 
             to_node.add_child(piece.unwrap().upcast::<Node>());
@@ -476,14 +497,13 @@ impl Board {
             }
         }
     }
-    pub fn add_pieces(&self, fen: GodotString) {
+    pub fn add_pieces(&self, fen: GodotString, player_color: PieceColor) {
         let array_fen = fen_to_board(&fen.to_string());
-
         for i in 0..8 {
             for j in 0..8 {
                 let piece: ChessPiece = array_fen[i * 8 + j];
                 let mut squre_centre_node = self.node.get_child((i * 8 + j) as i32).unwrap();
-                let centre = Board::create_piece(piece);
+                let centre = Board::create_piece(piece, player_color);
                 let centre = centre.try_to::<Gd<PlaceCenterDrag>>();
                 if centre.is_err() {
                     continue;
@@ -494,7 +514,7 @@ impl Board {
         }
     }
 
-    pub fn create_piece(piece: ChessPiece) -> Variant {
+    pub fn create_piece(piece: ChessPiece, player_color: PieceColor) -> Variant {
         let centre = load::<PackedScene>("res://place_center_drag.tscn");
         let centre = centre.instantiate().unwrap();
         let mut centre = centre.cast::<PlaceCenterDrag>();
@@ -505,8 +525,12 @@ impl Board {
                 let piece_node = piece_node.instantiate().unwrap();
                 let mut piece_node = piece_node.cast::<Piece>();
                 let mut piece_mut = piece_node.clone();
+                if player_color == PieceColor::Black {
+                    piece_node.set_rotation_degrees(180.0);
+                }
                 piece_node.set_centered(true);
                 piece_node.set_scale(Vector2::new(0.55, 0.55));
+
                 let mut piece_mut = piece_mut.bind_mut();
                 piece_mut.piece = string_to_piece(&path);
                 centre.add_child(piece_node.upcast::<Node>());
