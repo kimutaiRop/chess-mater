@@ -332,7 +332,7 @@ pub fn king_possible_squares(
     castle_rules: &str, // "KQkq"
 ) -> Vec<i32> {
     let mut squares: Vec<i32> = vec![];
-    let normal_squares = king_normal_squares(board_pieces, piece, position, castle_rules);
+    let normal_squares = king_normal_squares(board_pieces, piece, position);
     let castle_squares = king_castling(board_pieces, piece, position, castle_rules);
 
     squares.extend(normal_squares);
@@ -345,7 +345,6 @@ pub fn king_normal_squares(
     board_pieces: &[ChessPiece; 64],
     piece: ChessPiece,
     position: i32,
-    castle_rules: &str, // "KQkq"
 ) -> Vec<i32> {
     let mut squares: Vec<i32> = vec![];
     let color = piece.color();
@@ -764,7 +763,7 @@ impl Game {
 
                 if piece == ChessPiece::WKing || piece == ChessPiece::BKing {
                     poss_moves.extend(
-                        king_normal_squares(&board, piece, position, castle_rules)
+                        king_normal_squares(&board, piece, position)
                             .into_iter()
                             .map(|to| PossibleMoves {
                                 from: position,
@@ -831,9 +830,10 @@ fn count_possible_moves(depth: i32, game: &mut Game) -> i32 {
         let game = &mut game.clone();
 
         game.make_move(&move_);
-        num_posions += count_possible_moves(depth - 1, game);
-
+        let count = count_possible_moves(depth - 1, game);
         game.unmake_move(&move_);
+        let fen = game.fen.clone();
+        num_posions += count;
     }
     num_posions
 }
@@ -841,10 +841,10 @@ fn count_possible_moves(depth: i32, game: &mut Game) -> i32 {
 #[cfg(test)]
 #[test]
 fn test_possible_moves() {
-    for i in 1..=3 {
+    let fen: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    let mut game = Game::new(fen.into(), None);
+    for i in 0..=3 {
         let start_time = std::time::Instant::now();
-        let fen: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        let mut game = Game::new(fen.into(), None);
         let num_pos = count_possible_moves(i, &mut game);
         let end_time = std::time::Instant::now();
         println!(

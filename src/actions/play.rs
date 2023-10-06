@@ -1,3 +1,5 @@
+use godot::prelude::FromVariant;
+
 use crate::interface::chessboard::piece::{board_to_fen, fen_to_board, ChessPiece, Color};
 
 use super::{
@@ -9,7 +11,7 @@ use super::{
     player::Engine,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, godot::prelude::ToVariant, FromVariant)]
 pub enum MoveType {
     Normal,
     Castle,
@@ -48,7 +50,6 @@ pub struct Game {
 
 impl Game {
     pub fn new(fen: &str, engine: Option<Engine>) -> Self {
-        // get turn from fen
         let turn = fen.split(" ").collect::<Vec<&str>>()[1];
         let turn = match turn {
             "w" => Color::White,
@@ -269,7 +270,7 @@ impl Game {
             board_pieces[move_.to as usize] = piece;
             board_pieces[move_.from as usize] = ChessPiece::None;
             // replace enpassant part with '-'
-            let rules_part = rules_part.replace(enpassant_part, "-");
+            let mut rules_part = rules_part.replace(enpassant_part, "-");
             let fen = board_to_fen(&board_pieces);
 
             let check = in_check(&board_pieces, piece.color());
@@ -278,28 +279,30 @@ impl Game {
             }
 
             // check if castling rights are affected
-            let mut rights = String::from(castling_rights);
-            // check the side of the rook
-            if move_.from % 8 == 0 {
-                // left rook
-                if piece.color() == Color::White {
-                    rights = rights.replace("Q", "");
-                } else {
-                    rights = rights.replace("q", "");
+            if piece == ChessPiece::BRook || piece == ChessPiece::WRook {
+                let mut rights = String::from(castling_rights);
+                // check the side of the rook
+                if move_.from % 8 == 0 {
+                    // left rook
+                    if piece.color() == Color::White {
+                        rights = rights.replace("Q", "");
+                    } else {
+                        rights = rights.replace("q", "");
+                    }
+                } else if move_.from % 8 == 7 {
+                    // right rook
+                    if piece.color() == Color::White {
+                        rights = rights.replace("K", "");
+                    } else {
+                        rights = rights.replace("k", "");
+                    }
                 }
-            } else if move_.from % 8 == 7 {
-                // right rook
-                if piece.color() == Color::White {
-                    rights = rights.replace("K", "");
-                } else {
-                    rights = rights.replace("k", "");
+                // if rights is empty, replace with '-'
+                if rights == "" {
+                    rights = String::from("-");
                 }
+                rules_part = rules_part.replace(castling_rights, &rights);
             }
-            // if rights is empty, replace with '-'
-            if rights == "" {
-                rights = String::from("-");
-            }
-            let rules_part = rules_part.replace(castling_rights, &rights);
             let fen = format!("{} {}", fen, rules_part);
 
             return (fen.clone(), true);
@@ -308,14 +311,20 @@ impl Game {
     }
 
     fn queen_move(&self, move_: &Move) -> (String, bool) {
+        // check miving like a bishop or rook
+
+        let like_rook = move_.from % 8 == move_.to % 8 || move_.from / 8 == move_.to / 8;
+        if like_rook {
+            let as_rook = self.rook_move(move_);
+            if as_rook.1 {
+                return as_rook;
+            }
+        }
         let as_bishop = self.bishop_move(move_);
         if as_bishop.1 {
             return as_bishop;
         }
-        let as_rook = self.rook_move(move_);
-        if as_rook.1 {
-            return as_rook;
-        }
+
         return (self.fen.clone(), false);
     }
 
@@ -472,11 +481,9 @@ impl Game {
             _ => Color::White,
         };
         if color != move_.piece.color() {
-            println!("wrong color");
             return false;
         }
         if move_.from == move_.to {
-            println!("same square");
             return false;
         }
 
@@ -495,7 +502,6 @@ impl Game {
         };
 
         if !moved {
-            // println!("fail move from: {} to: {} fen: {}", move_.from, move_.to, self.fen);
             return false;
         }
 
@@ -550,9 +556,7 @@ impl Game {
         }
 
         let is_check = in_check(&fen_to_board(&fen), opp_color);
-        if is_check {
-            return false;
-        }
+
         let mut opp_king_pos = 0;
         for (i, piece) in board_pieces.iter().enumerate() {
             if *piece == ChessPiece::WKing {

@@ -20,7 +20,7 @@ impl Sprite2DVirtual for Piece {
     fn process(&mut self, _delta: f64) {}
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, godot::prelude::ToVariant, FromVariant)]
 pub enum ChessPiece {
     BPawn,
     WPawn,
